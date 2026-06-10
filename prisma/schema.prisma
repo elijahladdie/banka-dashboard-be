@@ -1,0 +1,285 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum UserRole {
+  PLATFORM_ADMIN
+  FINANCE_OFFICER
+  FINANCIAL_ADVISOR
+  SUBSCRIBER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum SubscriptionPlan {
+  STARTER
+  PRO
+  ADVANCED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  TRIALING
+  CANCELED
+  EXPIRED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum ReportType {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+  CUSTOM
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+  REMINDER
+}
+
+// ============================================================
+// Models
+// ============================================================
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique @db.VarChar(255)
+  passwordHash  String     @db.VarChar(255)
+  firstName     String     @db.VarChar(255)
+  lastName      String     @db.VarChar(255)
+  phoneNumber   String?    @db.VarChar(50)
+  role          UserRole   @default(SUBSCRIBER)
+  status        UserStatus @default(PENDING)
+  emailVerified Boolean    @default(false)
+  lastLoginAt   DateTime?  @db.Timestamptz()
+  createdAt     DateTime   @default(now()) @db.Timestamptz()
+  updatedAt     DateTime   @updatedAt @db.Timestamptz()
+  deletedAt     DateTime?  @db.Timestamptz()
+
+  subscription       Subscription?
+  advisor            Advisor?
+  assignmentsCreated    SubscriberAssignment[] @relation("AssignedBy")
+  subscriberAssignment  SubscriberAssignment[] @relation("Subscriber")
+  goals                 Goal[]
+  advisoryNotes         AdvisoryNote[]
+  reports               FinancialReport[]
+  meetingsAsSubscriber  Meeting[] @relation("SubscriberMeetings")
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime @db.Timestamptz()
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  revokedAt DateTime? @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Subscription {
+  id                String             @id @default(uuid()) @db.Uuid
+  userId            String             @unique @db.Uuid
+  plan              SubscriptionPlan   @default(STARTER)
+  status            SubscriptionStatus @default(TRIALING)
+  billingInterval   BillingInterval    @default(MONTHLY)
+  customerId        String?            @db.VarChar(255)
+  subscriptionId    String?            @db.VarChar(255)
+  startsAt          DateTime?          @db.Timestamptz()
+  endsAt            DateTime?          @db.Timestamptz()
+  cancelAtPeriodEnd Boolean            @default(false)
+  canceledAt        DateTime?          @db.Timestamptz()
+  trialStart        DateTime?          @db.Timestamptz()
+  trialEnd          DateTime?          @db.Timestamptz()
+  metadata          Json?              @db.JsonB
+  createdAt         DateTime           @default(now()) @db.Timestamptz()
+  updatedAt         DateTime           @updatedAt @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Advisor {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @db.Uuid
+  employeeCode   String   @unique @db.VarChar(100)
+  specialization String?  @db.VarChar(255)
+  bio            String?  @db.Text
+  maxClients     Int      @default(20)
+  currentClients Int      @default(0)
+  isAvailable    Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @db.Timestamptz()
+  deletedAt      DateTime? @db.Timestamptz()
+
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments       SubscriberAssignment[] @relation("Advisor")
+  advisoryNotes     AdvisoryNote[]
+  reports           FinancialReport[]
+  meetings          Meeting[] @relation("AdvisorMeetings")
+
+  @@map("advisors")
+}
+
+model SubscriberAssignment {
+  id           String   @id @default(uuid()) @db.Uuid
+  subscriberId String   @db.Uuid
+  advisorId    String   @db.Uuid
+  assignedBy   String   @db.Uuid
+  assignedAt   DateTime @default(now()) @db.Timestamptz()
+  endedAt      DateTime? @db.Timestamptz()
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @db.Timestamptz()
+
+  subscriber User    @relation("Subscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  advisor    Advisor @relation("Advisor", fields: [advisorId], references: [id], onDelete: Cascade)
+  assignedByUser User @relation("AssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([subscriberId, advisorId, isActive])
+  @@map("subscriber_assignments")
+}
+
+model Goal {
+  id            String     @id @default(uuid()) @db.Uuid
+  subscriberId  String     @db.Uuid
+  title         String     @db.VarChar(255)
+  description   String?    @db.Text
+  targetAmount  Decimal?   @db.Decimal(15, 2)
+  currentAmount Decimal    @default(0) @db.Decimal(15, 2)
+  targetDate    DateTime?  @db.Timestamptz()
+  status        GoalStatus @default(NOT_STARTED)
+  createdAt     DateTime   @default(now()) @db.Timestamptz()
+  updatedAt     DateTime   @updatedAt @db.Timestamptz()
+  deletedAt     DateTime?  @db.Timestamptz()
+
+  subscriber User @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}
+
+model AdvisoryNote {
+  id           String   @id @default(uuid()) @db.Uuid
+  advisorId    String   @db.Uuid
+  subscriberId String   @db.Uuid
+  title        String   @db.VarChar(255)
+  content      String   @db.Text
+  createdAt    DateTime @default(now()) @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @db.Timestamptz()
+
+  advisor    Advisor @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  subscriber User    @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@map("advisory_notes")
+}
+
+model FinancialReport {
+  id           String     @id @default(uuid()) @db.Uuid
+  subscriberId String     @db.Uuid
+  advisorId    String     @db.Uuid
+  title        String     @db.VarChar(255)
+  reportType   ReportType @default(MONTHLY)
+  fileUrl      String?    @db.Text
+  summary      String?    @db.Text
+  createdAt    DateTime   @default(now()) @db.Timestamptz()
+  updatedAt    DateTime   @updatedAt @db.Timestamptz()
+
+  subscriber User    @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  advisor    Advisor @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+
+  @@map("financial_reports")
+}
+
+model Meeting {
+  id            String        @id @default(uuid()) @db.Uuid
+  advisorId     String        @db.Uuid
+  subscriberId  String        @db.Uuid
+  title         String        @db.VarChar(255)
+  description   String?       @db.Text
+  meetingDate   DateTime      @db.Timestamptz()
+  status        MeetingStatus @default(SCHEDULED)
+  meetingLink   String?       @db.Text
+  createdAt     DateTime      @default(now()) @db.Timestamptz()
+  updatedAt     DateTime      @updatedAt @db.Timestamptz()
+
+  advisor    Advisor @relation("AdvisorMeetings", fields: [advisorId], references: [id], onDelete: Cascade)
+  subscriber User    @relation("SubscriberMeetings", fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@map("meetings")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  title     String           @db.VarChar(255)
+  message   String           @db.Text
+  type      NotificationType @default(INFO)
+  readAt    DateTime?        @db.Timestamptz()
+  createdAt DateTime         @default(now()) @db.Timestamptz()
+  updatedAt DateTime         @updatedAt @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  action     String   @db.VarChar(255)
+  entityType String   @db.VarChar(255)
+  entityId   String?  @db.Uuid
+  oldValues  Json?    @db.JsonB
+  newValues  Json?    @db.JsonB
+  ipAddress  String?  @db.VarChar(255)
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now()) @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
