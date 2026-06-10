@@ -1,8 +1,8 @@
 import { Response } from 'express';
 import { SettingsService } from '../services/settings.service';
 import { AuthenticatedRequest } from '../types';
-import { HTTP_STATUS } from '../constants';
 import { asyncHandler } from '../helpers';
+import { ResponseHandler } from '../utils/response-handler';
 
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
@@ -10,21 +10,13 @@ export class SettingsController {
   getProfile = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const user = await this.settingsService.getProfile(req.user!.userId);
     const { passwordHash, ...userWithoutPassword } = user;
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Profile retrieved successfully.',
-      data: userWithoutPassword,
-    });
+    ResponseHandler.success(res, userWithoutPassword, 'Profile retrieved successfully.');
   });
 
   updateProfile = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const user = await this.settingsService.updateProfile(req.user!.userId, req.body, req.user!.userId);
     const { passwordHash, ...userWithoutPassword } = user;
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Profile updated successfully.',
-      data: userWithoutPassword,
-    });
+    ResponseHandler.success(res, userWithoutPassword, 'Profile updated successfully.');
   });
 
   changePassword = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -35,9 +27,6 @@ export class SettingsController {
       newPassword,
       req.user!.userId
     );
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Password changed successfully.',
-    });
+    ResponseHandler.success(res, null, 'Password changed successfully.');
   });
 }

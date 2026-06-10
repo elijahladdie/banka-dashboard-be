@@ -1,19 +1,15 @@
 import { Request, Response } from 'express';
 import { AssignmentsService } from '../services/assignments.service';
 import { AuthenticatedRequest } from '../types';
-import { HTTP_STATUS } from '../constants';
 import { asyncHandler } from '../helpers';
+import { ResponseHandler } from '../utils/response-handler';
 
 export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
   findAll = asyncHandler(async (req: Request, res: Response) => {
     const result = await this.assignmentsService.findAll(req.query);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Assignments retrieved successfully.',
-      ...result,
-    });
+    ResponseHandler.success(res, result, 'Assignments retrieved successfully.');
   });
 
   assign = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -23,11 +19,7 @@ export class AssignmentsController {
       advisorId,
       req.user!.userId
     );
-    res.status(HTTP_STATUS.CREATED).json({
-      success: true,
-      message: 'Subscriber assigned to advisor successfully.',
-      data: assignment,
-    });
+    ResponseHandler.success(res, assignment, 'Subscriber assigned to advisor successfully.', 100, 201);
   });
 
   endAssignment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -35,19 +27,12 @@ export class AssignmentsController {
       req.params.id,
       req.user!.userId
     );
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Assignment ended successfully.',
-      data: assignment,
-    });
+    ResponseHandler.success(res, assignment, 'Assignment ended successfully.');
   });
 
   getActiveAssignment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const assignment = await this.assignmentsService.getActiveAssignment(req.params.subscriberId);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: assignment ? 'Active assignment found.' : 'No active assignment.',
-      data: assignment,
-    });
+    const message = assignment ? 'Active assignment found.' : 'No active assignment.';
+    ResponseHandler.success(res, assignment, message);
   });
 }

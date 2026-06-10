@@ -3,45 +3,70 @@ import { IAnalyticsRepository, AnalyticsOverview } from '../interfaces/analytics
 
 export class AnalyticsRepository implements IAnalyticsRepository {
   async getOverview(): Promise<AnalyticsOverview> {
-    const [totalSubscribers, totalAdvisors, activeSubscriptions, revenueByPlan, advisorCapacity, goalCompletion] =
-      await Promise.all([
-        this.getTotalSubscribers(),
-        this.getTotalAdvisors(),
-        this.getActiveSubscriptions(),
-        this.getRevenueByPlan(),
-        this.getAdvisorCapacity(),
-        this.getGoalCompletionRate(),
-      ]);
-
     const monthlyRevenue = await this.getMonthlyRevenue(12);
 
+    const overview = await prisma.$transaction(async (tx) => {
+      const totalSubscribers = await tx.user.count({
+        where: { role: 'SUBSCRIBER', deletedAt: null },
+      });
+
+      const totalAdvisors = await tx.advisor.count({
+        where: { deletedAt: null },
+      });
+
+      const activeSubscriptions = await tx.subscription.count({
+        where: { status: 'ACTIVE' },
+      });
+
+      const subscriptions = await tx.subscription.groupBy({
+        by: ['plan'],
+        where: { status: 'ACTIVE' },
+        _count: { plan: true },
+      });
+
+      const revenueByPlan = subscriptions.map((s) => ({
+        plan: s.plan,
+        revenue: 0,
+        count: s._count.plan,
+      }));
+
+      const advisors = await tx.advisor.findMany({
+        where: { deletedAt: null },
+        select: { maxClients: true, currentClients: true },
+      });
+
+      const total = advisors.reduce((sum, a) => sum + a.maxClients, 0);
+      const utilized = advisors.reduce((sum, a) => sum + a.currentClients, 0);
+
+      const goalTotal = await tx.goal.count({
+        where: { deletedAt: null },
+      });
+      const goalCompleted = await tx.goal.count({
+        where: { status: 'COMPLETED', deletedAt: null },
+      });
+
+      return {
+        totalSubscribers,
+        totalAdvisors,
+        activeSubscriptions,
+        revenueByPlan,
+        advisorCapacity: {
+          total,
+          utilized,
+          available: total - utilized,
+        },
+        goalCompletionRate: {
+          completed: goalCompleted,
+          total: goalTotal,
+          rate: goalTotal > 0 ? Math.round((goalCompleted / goalTotal) * 100) : 0,
+        },
+      };
+    });
+
     return {
-      totalSubscribers,
-      totalAdvisors,
-      activeSubscriptions,
-      revenueByPlan,
+      ...overview,
       monthlyRevenue,
-      advisorCapacity,
-      goalCompletionRate: goalCompletion,
     };
-  }
-
-  private async getTotalSubscribers(): Promise<number> {
-    return prisma.user.count({
-      where: { role: 'SUBSCRIBER', deletedAt: null },
-    });
-  }
-
-  private async getTotalAdvisors(): Promise<number> {
-    return prisma.advisor.count({
-      where: { deletedAt: null },
-    });
-  }
-
-  private async getActiveSubscriptions(): Promise<number> {
-    return prisma.subscription.count({
-      where: { status: 'ACTIVE' },
-    });
   }
 
   async getRevenueByPlan(): Promise<{ plan: string; revenue: number; count: number }[]> {
@@ -101,13 +126,10 @@ export class AnalyticsRepository implements IAnalyticsRepository {
   }
 
   async getGoalCompletionRate(): Promise<{ completed: number; total: number; rate: number }> {
-    const total = await prisma.goal.count({
-      where: { deletedAt: null },
-    });
-
-    const completed = await prisma.goal.count({
-      where: { status: 'COMPLETED', deletedAt: null },
-    });
+    const [total, completed] = await prisma.$transaction([
+      prisma.goal.count({ where: { deletedAt: null } }),
+      prisma.goal.count({ where: { status: 'COMPLETED', deletedAt: null } }),
+    ]);
 
     return {
       completed,

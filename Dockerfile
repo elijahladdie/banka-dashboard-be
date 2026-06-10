@@ -6,10 +6,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY tsconfig.json ./
-COPY prisma/ ./prisma/
 COPY src/ ./src/
 
-RUN npx prisma generate
+RUN npx prisma generate --schema=src/models/schema.prisma
 RUN npm run build
 
 FROM node:20-alpine AS runner
@@ -21,7 +20,6 @@ RUN adduser --system --uid 1001 express
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
 COPY package*.json ./
 
 RUN chown -R express:nodejs .

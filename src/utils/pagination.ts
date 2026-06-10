@@ -23,7 +23,7 @@ export function paginateResult<T>(
 
   return {
     data,
-    meta: {
+    pagination: {
       page,
       limit,
       total,

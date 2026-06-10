@@ -6,12 +6,10 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import { globalRateLimiter } from './middleware/rateLimiter';
-import { errorHandler, swaggerSpec } from './helpers';
-import { logger } from './utils/logger';
+import { swaggerSpec } from './helpers';
+import logger from './utils/logger';
+import { ResponseHandler } from './utils/response-handler';
 import router from './routes';
-
-// Route imports
-
 
 const app = express();
 
@@ -27,9 +25,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-// Compression
-// app.use(compression());
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -65,7 +60,8 @@ app.get('/api/health', (_req, res) => {
 // API Routes
 // ============================================================
 
-app.use('/api', router)
+app.use('/api', router);
+
 // ============================================================
 // Swagger Documentation
 // ============================================================
@@ -86,17 +82,14 @@ app.use('/api/docs', [swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 // ============================================================
 
 app.use((_req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-    error: 'NOT_FOUND',
-  });
+  ResponseHandler.error(res, 404, 'Route not found', 404);
 });
 
 // ============================================================
-// Error Handler
+// Global Error Handler (safety net)
 // ============================================================
 
+import { errorHandler } from './helpers';
 app.use(errorHandler);
 
 export default app;

@@ -19,7 +19,7 @@ export interface PaginationParams {
 
 export interface PaginatedResult<T> {
   data: T[];
-  meta: {
+  pagination: {
     page: number;
     limit: number;
     total: number;
