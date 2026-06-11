@@ -3,11 +3,16 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthRepository } from '../repositories/implementations/auth.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
+import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import {
   AuthTokens,
   JwtPayload,
   SignUpInput,
   SignInInput,
+  PaddleSignUpInput,
+  PaddleSubscriptionUpdateInput,
+  CompleteRegistrationInput,
+  PendingRegistrationResult,
 } from '../types';
 import {
   ConflictError,
@@ -20,7 +25,8 @@ import { TOKEN } from '../constants';
 export class AuthService {
   constructor(
     private readonly authRepository: AuthRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
+    private readonly auditLogsRepository: AuditLogsRepository,
+    private readonly subscriptionsRepository: SubscriptionsRepository,
   ) {}
 
   async signUp(input: SignUpInput): Promise<{ user: any; tokens: AuthTokens }> {
@@ -73,6 +79,10 @@ export class AuthService {
       throw new UnauthorizedError('This account is inactive.');
     }
 
+    if (!user.registrationCompleted) {
+      throw new UnauthorizedError('Please complete your registration first.');
+    }
+
     const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
     if (!isPasswordValid) {
       throw new UnauthorizedError('Invalid email or password.');
@@ -117,6 +127,131 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return tokens;
+  }
+
+  async signUpFromPaddle(input: PaddleSignUpInput): Promise<{ user: any }> {
+    const existingUser = await this.authRepository.findByEmail(input.email);
+    if (existingUser) {
+      // User already exists — create subscription if missing, or update customerId
+      const existingSub = await this.subscriptionsRepository.findByUserId(existingUser.id);
+      if (existingSub) {
+        await this.subscriptionsRepository.update(existingSub.id, {
+          customerId: input.customerId || existingSub.customerId,
+          subscriptionId: input.subscriptionId || existingSub.subscriptionId,
+        });
+      } else {
+        await this.subscriptionsRepository.create({
+          userId: existingUser.id,
+          customerId: input.customerId || '',
+          subscriptionId: input.subscriptionId || '',
+        });
+      }
+      const { passwordHash: _, ...userWithoutPassword } = existingUser;
+      return { user: userWithoutPassword };
+    }
+
+    // Placeholder password — user must complete registration to set a real one
+    const placeholderHash = await bcrypt.hash(uuidv4(), 1);
+
+    const user = await this.authRepository.createUser({
+      email: input.email,
+      passwordHash: placeholderHash,
+      firstName: input.fullName,
+      lastName: '',
+      registrationCompleted: false,
+      source: 'paddle',
+    });
+
+    // Create a subscription record with the Paddle customer ID
+    await this.subscriptionsRepository.create({
+      userId: user.id,
+      customerId: input.customerId || '',
+      subscriptionId: input.subscriptionId || '',
+    });
+
+    await this.auditLogsRepository.create({
+      userId: user.id,
+      action: 'USER_CREATED_FROM_PADDLE',
+      entityType: 'User',
+      entityId: user.id,
+      newValues: { source: 'paddle', email: input.email },
+    });
+
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    return { user: userWithoutPassword };
+  }
+
+  /**
+   * Update a user's subscription info from a Paddle transaction/subscription event.
+   * Finds the subscription by customerId (stored in the Subscription model) and updates
+   * the subscriptionId. Returns the user through the subscription relation, or null
+   * if no subscription with that customerId exists.
+   */
+  async updateSubscriptionFromPaddle(input: PaddleSubscriptionUpdateInput): Promise<any | null> {
+    // Find subscription by Paddle customerId
+    const subscription = await this.subscriptionsRepository.findByCustomerId(input.customerId);
+    if (!subscription) return null;
+
+    // Update the subscription's paddle subscriptionId
+    await this.subscriptionsRepository.update(subscription.id, {
+      subscriptionId: input.subscriptionId || subscription.subscriptionId,
+    });
+
+    // Return the user (without password hash)
+    const user = await this.authRepository.findById(subscription.userId);
+    if (!user) return null;
+
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; tokens: AuthTokens }> {
+    const user = await this.authRepository.findByEmail(input.email);
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    if (user.registrationCompleted) {
+      throw new ValidationError('Registration is already completed.');
+    }
+
+    const salt = await bcrypt.genSalt(
+      parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)
+    );
+    const passwordHash = await bcrypt.hash(input.password, salt);
+
+    const updated = await this.authRepository.updateUser(user.id, {
+      passwordHash,
+      phoneNumber: input.phone,
+      registrationCompleted: true,
+      status: 'ACTIVE',
+    });
+
+    const tokens = await this.generateTokens(updated.id, updated.email, updated.role);
+
+    await this.auditLogsRepository.create({
+      userId: updated.id,
+      action: 'REGISTRATION_COMPLETED',
+      entityType: 'User',
+      entityId: updated.id,
+    });
+
+    const { passwordHash: _, ...userWithoutPassword } = updated;
+    return { user: userWithoutPassword, tokens };
+  }
+
+  async checkPendingRegistration(email: string): Promise<PendingRegistrationResult> {
+    const user = await this.authRepository.findByEmail(email.toLowerCase());
+    if (!user) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      email: user.email,
+      fullName: `${user.firstName} ${user.lastName}`.trim(),
+      registrationCompleted: user.registrationCompleted,
+    };
   }
 
   async logout(userId: string): Promise<void> {

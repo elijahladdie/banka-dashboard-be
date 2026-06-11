@@ -11,6 +11,10 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     return prisma.subscription.findUnique({ where: { userId } });
   }
 
+  async findByCustomerId(customerId: string): Promise<Subscription | null> {
+    return prisma.subscription.findFirst({ where: { customerId } });
+  }
+
   async findAll(params: {
     skip?: number;
     take?: number;

@@ -50,6 +50,32 @@ export interface SignUpInput {
   phoneNumber?: string;
 }
 
+export interface PaddleSignUpInput {
+  email: string;
+  fullName: string;
+  source: 'paddle';
+  subscriptionId: string;
+  customerId: string;
+}
+
+export interface PaddleSubscriptionUpdateInput {
+  customerId: string;
+  subscriptionId: string;
+}
+
+export interface CompleteRegistrationInput {
+  email: string;
+  phone: string;
+  password: string;
+}
+
+export interface PendingRegistrationResult {
+  exists: boolean;
+  email?: string;
+  fullName?: string;
+  registrationCompleted?: boolean;
+}
+
 export interface SignInInput {
   email: string;
   password: string;

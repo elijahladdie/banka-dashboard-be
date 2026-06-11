@@ -17,6 +17,8 @@ export class AuthRepository implements IAuthRepository {
     firstName: string;
     lastName: string;
     phoneNumber?: string;
+    registrationCompleted?: boolean;
+    source?: string;
   }): Promise<User> {
     return prisma.user.create({
       data: {
@@ -25,6 +27,8 @@ export class AuthRepository implements IAuthRepository {
         firstName: data.firstName,
         lastName: data.lastName,
         phoneNumber: data.phoneNumber,
+        registrationCompleted: data.registrationCompleted ?? true,
+        source: data.source,
         role: 'SUBSCRIBER',
         status: 'PENDING',
       },

@@ -297,6 +297,7 @@ const options: swaggerJsdoc.Options = {
       { name: 'Audit Logs', description: 'Compliance audit trail (admin only)' },
       { name: 'Settings', description: 'Profile and password management' },
       { name: 'Notes', description: 'Advisory notes from advisors' },
+      { name: 'Paddle', description: 'Paddle API integration (products & pricing)' },
     ],
     paths: {
       // ============================================================
@@ -596,6 +597,21 @@ const options: swaggerJsdoc.Options = {
           summary: 'Cancel subscription',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
           responses: { 200: { description: 'Subscription canceled' } },
+        },
+      },
+
+      // ============================================================
+      // Paddle — Products & Pricing (from Paddle API)
+      // ============================================================
+      '/api/paddle/products': {
+        get: {
+          tags: ['Paddle'],
+          summary: 'List Paddle products with prices (Admin/Finance/Advisor)',
+          description: 'Fetches products with embedded prices from Paddle. Use ?interval=month or ?interval=year to filter prices by billing cycle.',
+          parameters: [
+            { name: 'interval', in: 'query', schema: { type: 'string', enum: ['month', 'year'] }, description: 'Filter prices by billing interval (month or year). If omitted, returns all prices.' },
+          ],
+          responses: { 200: { description: 'Paddle products with prices retrieved successfully' } },
         },
       },
 

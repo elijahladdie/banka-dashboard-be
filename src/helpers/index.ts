@@ -6,7 +6,7 @@ export {
   NotFoundError,
   ConflictError,
   RateLimitError,
+  ServerError,
 } from './AppError';
 export { errorHandler } from './errorHandler';
-export { asyncHandler } from './asyncHandler';
 export { swaggerSpec } from './swagger';
