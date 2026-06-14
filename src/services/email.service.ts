@@ -7,6 +7,8 @@
  */
 
 import nodemailer from 'nodemailer';
+import { Address } from 'nodemailer/lib/mailer';
+import { NODE_ENV, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, DASHBOARD_URL } from '../utils/constants';
 
 interface SendEmailOptions {
   to: string;
@@ -20,10 +22,10 @@ interface SendEmailOptions {
  * Falls back to a logger-only transport when SMTP is not configured.
  */
 function createTransporter(): nodemailer.Transporter {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const host = SMTP_HOST;
+  const port = SMTP_PORT;
+  const user = SMTP_USER;
+  const pass = SMTP_PASS;
 
   if (host && user && pass) {
     return nodemailer.createTransport({
@@ -35,7 +37,7 @@ function createTransporter(): nodemailer.Transporter {
   }
 
   // Fallback: log to console in development
-  if (process.env.NODE_ENV !== 'production') {
+  if (NODE_ENV !== 'production') {
     console.warn('[email] SMTP not configured — emails will be logged to console only.');
     return {
       sendMail: async (opts: any) => {
@@ -50,7 +52,7 @@ function createTransporter(): nodemailer.Transporter {
 
 const transporter = createTransporter();
 
-const FROM_ADDRESS = process.env.SMTP_FROM || 'noreply@banka.rw';
+const FROM_ADDRESS: Address = { address: SMTP_FROM || 'noreply@banka.rw', name: 'Banka' };
 
 /**
  * Build the registration-completion email HTML.
@@ -136,8 +138,7 @@ export async function sendRegistrationEmail(
   email: string,
   fullName: string,
 ): Promise<void> {
-  const dashboardUrl =
-    process.env.DASHBOARD_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
+  const dashboardUrl = DASHBOARD_URL;
 
   const completionUrl = new URL('/auth/signup', dashboardUrl);
   completionUrl.searchParams.set('source', 'paddle');

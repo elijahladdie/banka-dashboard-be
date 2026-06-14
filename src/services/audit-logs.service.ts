@@ -5,9 +5,10 @@ import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class AuditLogsService {
-  constructor(
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly auditLogsRepository: AuditLogsRepository;
+  constructor() {
+    this.auditLogsRepository = new AuditLogsRepository();
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<AuditLog>> {
     const pagination = parsePaginationParams(query);
@@ -20,10 +21,7 @@ export class AuditLogsService {
     if (query.fromDate) where.createdAt = { ...where.createdAt, gte: new Date(query.fromDate) };
     if (query.toDate) where.createdAt = { ...where.createdAt, lte: new Date(query.toDate) };
 
-    const [logs, total] = await Promise.all([
-      this.auditLogsRepository.findAll({ skip, take, orderBy, where }),
-      this.auditLogsRepository.count(where),
-    ]);
+    const [logs, total] = await this.auditLogsRepository.findAll({ skip, take, orderBy, where });
 
     return paginateResult(logs, total, pagination);
   }

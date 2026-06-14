@@ -3,7 +3,10 @@ import { AnalyticsService } from '../services/analytics.service';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  private readonly analyticsService: AnalyticsService;
+  constructor() {
+    this.analyticsService = new AnalyticsService();
+  }
 
   async getOverview(_req: Request, res: Response) {
     const overview = await this.analyticsService.getOverview();

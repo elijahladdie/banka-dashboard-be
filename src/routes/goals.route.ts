@@ -1,18 +1,12 @@
 import { Router } from 'express';
 import { GoalsController } from '../controllers/goals.controller';
-import { GoalsService } from '../services/goals.service';
-import { GoalsRepository } from '../repositories/implementations/goals.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard, rolesGuard } from '../middleware';
 import { ROLES } from '../constants';
 
 const router = Router();
 
-const goalsRepository = new GoalsRepository();
-const auditLogsRepository = new AuditLogsRepository();
-const goalsService = new GoalsService(goalsRepository, auditLogsRepository);
-const goalsController = new GoalsController(goalsService);
+const goalsController = new GoalsController();
 
 router.use(jwtAuthGuard);
 

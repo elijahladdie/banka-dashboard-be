@@ -7,7 +7,6 @@ export interface IAuditLogsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<AuditLog[]>;
-  count(where?: Record<string, any>): Promise<number>;
+  }): Promise<[AuditLog[], number]>;
   create(data: Partial<AuditLog>): Promise<AuditLog>;
 }

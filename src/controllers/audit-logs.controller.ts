@@ -3,7 +3,10 @@ import { AuditLogsService } from '../services/audit-logs.service';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class AuditLogsController {
-  constructor(private readonly auditLogsService: AuditLogsService) {}
+  private readonly auditLogsService: AuditLogsService
+  constructor() {
+    this.auditLogsService = new AuditLogsService();
+  }
 
   async findAll(req: Request, res: Response) {
     const result = await this.auditLogsService.findAll(req.query);

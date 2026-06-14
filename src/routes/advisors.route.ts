@@ -1,18 +1,12 @@
 import { Router } from 'express';
 import { AdvisorsController } from '../controllers/advisors.controller';
-import { AdvisorsService } from '../services/advisors.service';
-import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard, rolesGuard } from '../middleware';
 import { ROLES } from '../constants';
 
 const router = Router();
 
-const advisorsRepository = new AdvisorsRepository();
-const auditLogsRepository = new AuditLogsRepository();
-const advisorsService = new AdvisorsService(advisorsRepository, auditLogsRepository);
-const advisorsController = new AdvisorsController(advisorsService);
+const advisorsController = new AdvisorsController();
 
 router.use(jwtAuthGuard);
 

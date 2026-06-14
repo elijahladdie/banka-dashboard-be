@@ -6,10 +6,12 @@ import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class GoalsService {
-  constructor(
-    private readonly goalsRepository: GoalsRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly goalsRepository: GoalsRepository;
+  private readonly auditLogsRepository: AuditLogsRepository;
+  constructor() {
+    this.goalsRepository = new GoalsRepository();
+    this.auditLogsRepository = new AuditLogsRepository();
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Goal>> {
     const pagination = parsePaginationParams(query);
@@ -19,10 +21,7 @@ export class GoalsService {
     if (query.subscriberId) where.subscriberId = query.subscriberId;
     if (query.status) where.status = query.status;
 
-    const [goals, total] = await Promise.all([
-      this.goalsRepository.findAll({ skip, take, orderBy, where }),
-      this.goalsRepository.count(where),
-    ]);
+    const [goals, total] = await this.goalsRepository.findAll({ skip, take, orderBy, where })
 
     return paginateResult(goals, total, pagination);
   }
@@ -37,10 +36,7 @@ export class GoalsService {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
-    const [goals, total] = await Promise.all([
-      this.goalsRepository.findBySubscriber(subscriberId, { skip, take, orderBy }),
-      this.goalsRepository.count({ subscriberId }),
-    ]);
+    const [goals, total] = await this.goalsRepository.findAll({ where: { subscriberId }, skip, take, orderBy });
 
     return paginateResult(goals, total, pagination);
   }

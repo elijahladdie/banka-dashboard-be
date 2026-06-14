@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class NotesController {
-  constructor(private readonly notesService: NotesService) {}
+  private readonly notesService: NotesService;
+  constructor() {
+    this.notesService = new NotesService();
+  }
 
   async findByAdvisor(req: AuthenticatedRequest, res: Response) {
     const advisorId = req.params.advisorId || req.user!.userId;

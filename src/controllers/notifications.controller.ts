@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  private readonly notificationsService: NotificationsService;
+  constructor() {
+    this.notificationsService = new NotificationsService();
+  }
 
   async findByUser(req: AuthenticatedRequest, res: Response) {
     const userId = req.params.userId || req.user!.userId;

@@ -20,12 +20,12 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<Subscription[]> {
-    return prisma.subscription.findMany(params);
-  }
-
-  async count(where?: Record<string, any>): Promise<number> {
-    return prisma.subscription.count({ where });
+  }): Promise<[Subscription[], number]> {
+    const [subscriptions, total] = await Promise.all([
+      prisma.subscription.findMany(params),
+      prisma.subscription.count({ where: params.where })
+    ]);
+    return [subscriptions, total];
   }
 
   async create(data: Partial<Subscription>): Promise<Subscription> {

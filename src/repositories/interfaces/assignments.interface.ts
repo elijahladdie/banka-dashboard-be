@@ -12,8 +12,7 @@ export interface IAssignmentsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<SubscriberAssignment[]>;
-  count(where?: Record<string, any>): Promise<number>;
+  }): Promise<[SubscriberAssignment[], number]>;
   create(data: Partial<SubscriberAssignment>): Promise<SubscriberAssignment>;
   endAssignment(id: string): Promise<SubscriberAssignment>;
 }

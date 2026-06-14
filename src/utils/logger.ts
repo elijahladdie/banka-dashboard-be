@@ -1,3 +1,5 @@
+import { NODE_ENV } from './constants';
+
 const LOG_LEVELS = {
   ERROR: 0,
   WARN: 1,
@@ -8,8 +10,7 @@ const LOG_LEVELS = {
 type LogLevel = keyof typeof LOG_LEVELS;
 
 const getLogLevel = (): number => {
-  const env = process.env.NODE_ENV || 'development';
-  if (env === 'production') return LOG_LEVELS.INFO;
+  if (NODE_ENV === 'production') return LOG_LEVELS.INFO;
   return LOG_LEVELS.DEBUG;
 };
 
@@ -48,6 +49,4 @@ const logger = {
     }
   },
 };
-
-export { logger };
 export default logger;

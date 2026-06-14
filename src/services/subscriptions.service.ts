@@ -6,12 +6,15 @@ import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class SubscriptionsService {
-  constructor(
-    private readonly subscriptionsRepository: SubscriptionsRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly subscriptionsRepository: SubscriptionsRepository;
+  private readonly auditLogsRepository: AuditLogsRepository;
+  constructor() {
+    this.subscriptionsRepository = new SubscriptionsRepository();
+    this.auditLogsRepository = new AuditLogsRepository();
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Subscription>> {
+    console.log('Finding subscriptions with query:', query);
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
@@ -19,10 +22,7 @@ export class SubscriptionsService {
     if (query.plan) where.plan = query.plan;
     if (query.status) where.status = query.status;
 
-    const [subscriptions, total] = await Promise.all([
-      this.subscriptionsRepository.findAll({ skip, take, orderBy, where }),
-      this.subscriptionsRepository.count(where),
-    ]);
+    const [subscriptions, total] = await this.subscriptionsRepository.findAll({ skip, take, orderBy, where });
 
     return paginateResult(subscriptions, total, pagination);
   }

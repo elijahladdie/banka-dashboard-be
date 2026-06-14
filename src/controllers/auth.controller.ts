@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly authService: AuthService;
+  constructor() {
+    this.authService = new AuthService();
+  }
 
   async signUp(req: Request, res: Response) {
     const { user, tokens } = await this.authService.signUp(req.body);

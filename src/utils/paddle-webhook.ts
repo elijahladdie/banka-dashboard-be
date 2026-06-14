@@ -100,10 +100,7 @@ let _authService: AuthService | null = null;
 
 function getAuthService(): AuthService {
   if (!_authService) {
-    const authRepository = new AuthRepository();
-    const auditLogsRepository = new AuditLogsRepository();
-    const subscriptionsRepository = new SubscriptionsRepository();
-    _authService = new AuthService(authRepository, auditLogsRepository, subscriptionsRepository);
+    _authService = new AuthService();
   }
   return _authService;
 }

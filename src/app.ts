@@ -10,6 +10,7 @@ import { swaggerSpec } from './helpers';
 import logger from './utils/logger';
 import { ResponseHandler } from './utils/response-handler';
 import router from './routes';
+import { CORS_ORIGIN, COOKIE_SECRET, NODE_ENV } from './utils/constants';
 
 const app = express();
 
@@ -20,7 +21,7 @@ const app = express();
 // Security
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: CORS_ORIGIN,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -36,10 +37,10 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Cookie parsing
-app.use(cookieParser(process.env.COOKIE_SECRET));
+app.use(cookieParser(COOKIE_SECRET));
 
 // Logging
-if (process.env.NODE_ENV !== 'test') {
+if (NODE_ENV !== 'test') {
   app.use(morgan('combined', {
     stream: { write: (message: string) => logger.info(message.trim()) },
   }));

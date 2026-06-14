@@ -1,15 +1,11 @@
 import { Router } from 'express';
 import { NotificationsController } from '../controllers/notifications.controller';
-import { NotificationsService } from '../services/notifications.service';
-import { NotificationsRepository } from '../repositories/implementations/notifications.repository';
 import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard } from '../middleware';
 
 const router = Router();
 
-const notificationsRepository = new NotificationsRepository();
-const notificationsService = new NotificationsService(notificationsRepository);
-const notificationsController = new NotificationsController(notificationsService);
+const notificationsController = new NotificationsController();
 
 router.use(jwtAuthGuard);
 

@@ -6,10 +6,12 @@ import { PaginatedResult, PaginationParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class UsersService {
-  constructor(
-    private readonly usersRepository: UsersRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly usersRepository: UsersRepository;
+  private readonly auditLogsRepository: AuditLogsRepository;
+  constructor() {
+    this.usersRepository = new UsersRepository();
+    this.auditLogsRepository = new AuditLogsRepository();
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<User>> {
     const pagination = parsePaginationParams(query);
@@ -26,11 +28,7 @@ export class UsersService {
       ];
     }
 
-    const [users, total] = await Promise.all([
-      this.usersRepository.findAll({ skip, take, orderBy, where }),
-      this.usersRepository.count(where),
-    ]);
-
+    const [users, total] = await this.usersRepository.findAll({ skip, take, orderBy, where });
     return paginateResult(users, total, pagination);
   }
 

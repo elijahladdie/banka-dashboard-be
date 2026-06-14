@@ -9,8 +9,7 @@ export interface ISubscriptionsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<Subscription[]>;
-  count(where?: Record<string, any>): Promise<number>;
+  }): Promise<[Subscription[], number]>;
   create(data: Partial<Subscription>): Promise<Subscription>;
   update(id: string, data: Partial<Subscription>): Promise<Subscription>;
 }

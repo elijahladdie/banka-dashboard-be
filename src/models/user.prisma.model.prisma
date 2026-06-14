@@ -1,0 +1,30 @@
+model User {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  email                 String                 @unique @db.VarChar(255)
+  passwordHash          String                 @db.VarChar(255)
+  firstName             String                 @db.VarChar(255)
+  lastName              String                 @db.VarChar(255)
+  phoneNumber           String?                @db.VarChar(50)
+  role                  UserRole               @default(SUBSCRIBER)
+  status                UserStatus             @default(PENDING)
+  emailVerified         Boolean                @default(false)
+  lastLoginAt           DateTime?              @db.Timestamptz(6)
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime               @updatedAt @db.Timestamptz(6)
+  deletedAt             DateTime?              @db.Timestamptz(6)
+  registrationCompleted Boolean                @default(true)
+  source                String?                @db.VarChar(50)
+  advisor               Advisor?
+  advisoryNotes         AdvisoryNote[]
+  auditLogs             AuditLog[]
+  reports               FinancialReport[]
+  goals                 Goal[]
+  meetingsAsSubscriber  Meeting[]              @relation("SubscriberMeetings")
+  notifications         Notification[]
+  refreshTokens         RefreshToken[]
+  assignmentsCreated    SubscriberAssignment[] @relation("AssignedBy")
+  subscriberAssignment  SubscriberAssignment[] @relation("Subscriber")
+  subscription          Subscription?
+
+  @@map("users")
+}

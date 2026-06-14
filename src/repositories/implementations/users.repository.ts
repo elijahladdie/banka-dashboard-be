@@ -14,17 +14,17 @@ export class UsersRepository implements IUsersRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<User[]> {
-    return prisma.user.findMany({
-      ...params,
-      where: { ...params.where, deletedAt: null },
-    });
-  }
-
-  async count(where?: Record<string, any>): Promise<number> {
-    return prisma.user.count({
-      where: { ...where, deletedAt: null },
-    });
+  }): Promise<[User[], number]> {
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        ...params,
+        where: { ...params.where, deletedAt: null },
+      }),
+      prisma.user.count({
+        where: { ...params.where, deletedAt: null },
+      })
+    ]);
+    return [users, total];
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {

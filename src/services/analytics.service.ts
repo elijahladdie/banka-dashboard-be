@@ -2,9 +2,10 @@ import { AnalyticsRepository } from '../repositories/implementations/analytics.r
 import { AnalyticsOverview } from '../repositories/interfaces/analytics.interface';
 
 export class AnalyticsService {
-  constructor(
-    private readonly analyticsRepository: AnalyticsRepository
-  ) {}
+  private readonly analyticsRepository: AnalyticsRepository;
+  constructor() {
+    this.analyticsRepository = new AnalyticsRepository();
+  }
 
   async getOverview(): Promise<AnalyticsOverview> {
     return this.analyticsRepository.getOverview();

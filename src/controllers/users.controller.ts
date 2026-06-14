@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  private readonly usersService: UsersService;
+  constructor() {
+    this.usersService = new UsersService();
+  }
 
   async findAll(req: Request, res: Response) {
     const result = await this.usersService.findAll(req.query);

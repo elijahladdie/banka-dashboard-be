@@ -13,8 +13,7 @@ export interface IReportsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<FinancialReport[]>;
-  count(where?: Record<string, any>): Promise<number>;
+  }): Promise<[FinancialReport[], number]>;
   create(data: Partial<FinancialReport>): Promise<FinancialReport>;
   update(id: string, data: Partial<FinancialReport>): Promise<FinancialReport>;
   delete(id: string): Promise<FinancialReport>;

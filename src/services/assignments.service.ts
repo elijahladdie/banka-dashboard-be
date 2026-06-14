@@ -8,14 +8,19 @@ import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class AssignmentsService {
-  constructor(
-    private readonly assignmentsRepository: AssignmentsRepository,
-    private readonly advisorsRepository: AdvisorsRepository,
-    private readonly usersRepository: UsersRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly assignmentsRepository: AssignmentsRepository;
+    private readonly advisorsRepository: AdvisorsRepository;
+    private readonly usersRepository: UsersRepository;
+    private readonly auditLogsRepository: AuditLogsRepository;
+  constructor() {
+    this.assignmentsRepository = new AssignmentsRepository();
+    this.advisorsRepository = new AdvisorsRepository();
+    this.usersRepository = new UsersRepository();
+    this.auditLogsRepository = new AuditLogsRepository();
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<SubscriberAssignment>> {
+    console.log('Finding assignments with query:', query);
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
@@ -24,10 +29,7 @@ export class AssignmentsService {
     if (query.advisorId) where.advisorId = query.advisorId;
     if (query.subscriberId) where.subscriberId = query.subscriberId;
 
-    const [assignments, total] = await Promise.all([
-      this.assignmentsRepository.findAll({ skip, take, orderBy, where }),
-      this.assignmentsRepository.count(where),
-    ]);
+    const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where });
 
     return paginateResult(assignments, total, pagination);
   }
@@ -37,6 +39,7 @@ export class AssignmentsService {
     advisorId: string,
     assignedBy: string
   ): Promise<SubscriberAssignment> {
+    console.log('Assigning subscriber:', subscriberId, advisorId, assignedBy);
     // Verify subscriber exists and has SUBSCRIBER role
     const subscriber = await this.usersRepository.findById(subscriberId);
     if (!subscriber) throw new NotFoundError('Subscriber');

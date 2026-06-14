@@ -27,18 +27,18 @@ export class AdvisorsRepository implements IAdvisorsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<(Advisor & { user: User })[]> {
-    return prisma.advisor.findMany({
-      ...params,
-      where: { ...params.where, deletedAt: null },
-      include: { user: true },
-    });
-  }
-
-  async count(where?: Record<string, any>): Promise<number> {
-    return prisma.advisor.count({
-      where: { ...where, deletedAt: null },
-    });
+  }): Promise<[(Advisor & { user: User })[], number]> {
+    const [records, count] = await prisma.$transaction([
+      prisma.advisor.findMany({
+        ...params,
+        where: { ...params.where, deletedAt: null },
+        include: { user: true },
+      }),
+      prisma.advisor.count({
+        where: { ...params.where, deletedAt: null },
+      })
+    ]);
+    return [records, count];
   }
 
   async create(data: Partial<Advisor>): Promise<Advisor> {

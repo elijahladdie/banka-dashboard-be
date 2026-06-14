@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { PaddleService } from '../services/paddle.service';
 import { PaddleController } from '../controllers/paddle.controller';
 import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard, rolesGuard } from '../middleware';
@@ -7,8 +6,7 @@ import { ROLES } from '../constants';
 
 const router = Router();
 
-const paddleService = new PaddleService();
-const paddleController = new PaddleController(paddleService);
+const paddleController = new PaddleController();
 
 // Webhook endpoint — must be public (no auth), Paddle signs requests.
 // The raw body is captured via express.json({ verify }) in app.ts before parsing.

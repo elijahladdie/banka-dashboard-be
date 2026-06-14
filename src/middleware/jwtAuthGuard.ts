@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest, JwtPayload } from '../types';
 import { UnauthorizedError } from '../helpers';
+import { JWT_ACCESS_SECRET } from '../utils/constants';
 
 export function jwtAuthGuard(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
@@ -13,11 +14,7 @@ export function jwtAuthGuard(req: AuthenticatedRequest, _res: Response, next: Ne
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET || 'default-secret'
-    ) as JwtPayload;
-
+    const decoded = jwt.verify(token, JWT_ACCESS_SECRET) as JwtPayload;
     req.user = decoded;
     next();
   } catch (error) {

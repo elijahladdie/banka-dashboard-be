@@ -3,9 +3,13 @@ import { PaddleService } from '../services/paddle.service';
 import { ResponseHandler } from '../utils/response-handler';
 import { mapPaddleProductsResponse } from '../utils/paddle-mapper';
 import { verifyPaddleSignature, processPaddleWebhook } from '../utils/paddle-webhook';
+import { PADDLE_WEBHOOK_SECRET } from '../utils/constants';
 
 export class PaddleController {
-  constructor(private readonly paddleService: PaddleService) {}
+  private readonly paddleService: PaddleService;
+  constructor() {
+    this.paddleService = new PaddleService();
+  }
 
   async getProducts(req: Request, res: Response) {
     const interval = req.query.interval as string | undefined;
@@ -51,7 +55,7 @@ export class PaddleController {
 
     const rawBody: string = (req as any).rawBody || '';
     const paddleSignature = req.headers['paddle-signature'] as string || '';
-    const secret = process.env.PADDLE_WEBHOOK_SECRET;
+    const secret = PADDLE_WEBHOOK_SECRET;
 
     if (!secret) {
       console.error('[paddle-webhook] PADDLE_WEBHOOK_SECRET not configured');

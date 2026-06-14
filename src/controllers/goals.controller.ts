@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class GoalsController {
-  constructor(private readonly goalsService: GoalsService) {}
+  private readonly goalsService: GoalsService;
+  constructor() {
+    this.goalsService = new GoalsService();
+  }
 
   async findAll(req: Request, res: Response) {
     const result = await this.goalsService.findAll(req.query);

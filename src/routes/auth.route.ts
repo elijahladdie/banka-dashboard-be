@@ -1,9 +1,5 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
-import { AuthService } from '../services/auth.service';
-import { AuthRepository } from '../repositories/implementations/auth.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
-import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard } from '../middleware';
 import { validateRequest } from '../middleware/validateRequest';
@@ -20,11 +16,7 @@ import {
 
 const router = Router();
 
-const authRepository = new AuthRepository();
-const auditLogsRepository = new AuditLogsRepository();
-const subscriptionsRepository = new SubscriptionsRepository();
-const authService = new AuthService(authRepository, auditLogsRepository, subscriptionsRepository);
-const authController = new AuthController(authService);
+const authController = new AuthController();
 
 // Public routes with rate limiting
 router.post('/signup', authRateLimiter, validateRequest(signUpSchema), asyncWrapper(authController.signUp.bind(authController)));

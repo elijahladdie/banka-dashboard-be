@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class SubscriptionsController {
-  constructor(private readonly subscriptionsService: SubscriptionsService) {}
+  private readonly subscriptionsService: SubscriptionsService;
+  constructor() {
+    this.subscriptionsService = new SubscriptionsService();
+  }
 
   async findAll(req: Request, res: Response) {
     const result = await this.subscriptionsService.findAll(req.query);

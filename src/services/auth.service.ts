@@ -21,13 +21,17 @@ import {
   ValidationError,
 } from '../helpers';
 import { TOKEN } from '../constants';
+import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET } from '../utils/constants';
 
 export class AuthService {
-  constructor(
-    private readonly authRepository: AuthRepository,
-    private readonly auditLogsRepository: AuditLogsRepository,
-    private readonly subscriptionsRepository: SubscriptionsRepository,
-  ) {}
+  private readonly authRepository: AuthRepository;
+  private readonly auditLogsRepository: AuditLogsRepository;
+  private readonly subscriptionsRepository: SubscriptionsRepository;
+  constructor() {
+    this.authRepository = new AuthRepository();
+    this.auditLogsRepository = new AuditLogsRepository();
+    this.subscriptionsRepository = new SubscriptionsRepository();
+  }
 
   async signUp(input: SignUpInput): Promise<{ user: any; tokens: AuthTokens }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
@@ -35,9 +39,7 @@ export class AuthService {
       throw new ConflictError('A user with this email already exists.');
     }
 
-    const salt = await bcrypt.genSalt(
-      parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)
-    );
+    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(input.password, salt);
 
     const user = await this.authRepository.createUser({
@@ -215,9 +217,7 @@ export class AuthService {
       throw new ValidationError('Registration is already completed.');
     }
 
-    const salt = await bcrypt.genSalt(
-      parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)
-    );
+    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(input.password, salt);
 
     const updated = await this.authRepository.updateUser(user.id, {
@@ -285,9 +285,7 @@ export class AuthService {
 
   async resetPassword(resetToken: string, newPassword: string): Promise<void> {
     // In production, validate reset token from database
-    const salt = await bcrypt.genSalt(
-      parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)
-    );
+    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
     // Find user by reset token and update password
@@ -315,11 +313,7 @@ export class AuthService {
   ): Promise<AuthTokens> {
     const payload: JwtPayload = { userId, email, role };
 
-    const accessToken = jwt.sign(
-      payload,
-      process.env.JWT_ACCESS_SECRET || 'default-access-secret',
-      { expiresIn: 900 } // 15 minutes in seconds
-    );
+    const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: 900 });
 
     const refreshToken = uuidv4();
     const expiresAt = new Date(Date.now() + TOKEN.REFRESH_TOKEN_EXPIRY_MS);

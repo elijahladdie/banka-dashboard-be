@@ -12,15 +12,15 @@ export class AuditLogsRepository implements IAuditLogsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<AuditLog[]> {
-    return prisma.auditLog.findMany({
-      ...params,
-      include: { user: true },
-    });
-  }
-
-  async count(where?: Record<string, any>): Promise<number> {
-    return prisma.auditLog.count({ where });
+  }): Promise<[AuditLog[], number]> {
+    const [records, count] = await prisma.$transaction([
+      prisma.auditLog.findMany({
+        ...params,
+        include: { user: true },
+      }),
+      prisma.auditLog.count({ where: params.where })
+    ]);
+    return [records, count];
   }
 
   async create(data: Partial<AuditLog>): Promise<AuditLog> {

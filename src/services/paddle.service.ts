@@ -11,20 +11,21 @@ interface PaddleProductQuery {
   tax_category?: string[];
   type?: 'custom' | 'standard';
 }
+import { PADDLE_ENV, PADDLE_API_KEY } from '../utils/constants';
 
 export class PaddleService {
   private readonly api: AxiosInstance;
 
   constructor() {
     const baseURL =
-      process.env.PADDLE_ENV === 'sandbox'
+      PADDLE_ENV === 'sandbox'
         ? 'https://sandbox-api.paddle.com'
         : 'https://api.paddle.com';
 
     this.api = axios.create({
       baseURL,
       headers: {
-        'Authorization': `Bearer ${process.env.PADDLE_API_KEY}`,
+        'Authorization': `Bearer ${PADDLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       timeout: 15000,
@@ -50,7 +51,6 @@ export class PaddleService {
       if (query.type) params.type = query.type;
 
       const { data } = await this.api.get('/products', { params });
-      console.log('Paddle API /products response:', data);
       return data;
     } catch (error: any) {
       throw this.handlePaddleError(error, 'Failed to fetch products from Paddle');

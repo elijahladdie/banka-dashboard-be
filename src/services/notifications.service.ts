@@ -5,9 +5,10 @@ import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class NotificationsService {
-  constructor(
-    private readonly notificationsRepository: NotificationsRepository
-  ) {}
+  private readonly notificationsRepository: NotificationsRepository;
+  constructor() {
+    this.notificationsRepository = new NotificationsRepository();
+  }
 
   async findByUser(userId: string, query: Record<string, any>): Promise<PaginatedResult<Notification>> {
     const pagination = parsePaginationParams(query);
@@ -16,11 +17,9 @@ export class NotificationsService {
     const where: Record<string, any> = {};
     if (query.unreadOnly === 'true') where.readAt = null;
     if (query.type) where.type = query.type;
+    where.userId = userId;
 
-    const [notifications, total] = await Promise.all([
-      this.notificationsRepository.findByUser(userId, { skip, take, orderBy, where }),
-      this.notificationsRepository.count({ userId, ...where }),
-    ]);
+    const [notifications, total] = await this.notificationsRepository.findAll({ skip, take, orderBy, where });
 
     return paginateResult(notifications, total, pagination);
   }
@@ -50,6 +49,8 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    return this.notificationsRepository.count({ userId, readAt: null });
+    return this.notificationsRepository.findAll({
+      where: { userId, readAt: null }
+    }).then(([notifications, _]) => notifications.length);
   }
 }

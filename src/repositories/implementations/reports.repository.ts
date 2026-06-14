@@ -27,12 +27,12 @@ export class ReportsRepository implements IReportsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<FinancialReport[]> {
-    return prisma.financialReport.findMany(params);
-  }
-
-  async count(where?: Record<string, any>): Promise<number> {
-    return prisma.financialReport.count({ where });
+  }): Promise<[FinancialReport[], number]> {
+    const [reports, total] = await Promise.all([
+      prisma.financialReport.findMany(params),
+      prisma.financialReport.count({ where: params.where }),
+    ]);
+    return [reports, total];
   }
 
   async create(data: Partial<FinancialReport>): Promise<FinancialReport> {
