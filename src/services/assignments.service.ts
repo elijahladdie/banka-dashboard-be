@@ -1,21 +1,21 @@
 import { SubscriberAssignment } from '@prisma/client';
 import { AssignmentsRepository } from '../repositories/implementations/assignments.repository';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
-import { UsersRepository } from '../repositories/implementations/users.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { ConflictError, NotFoundError, ValidationError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, TUserSelect } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 
 export class AssignmentsService {
   private readonly assignmentsRepository: AssignmentsRepository;
-    private readonly advisorsRepository: AdvisorsRepository;
-    private readonly usersRepository: UsersRepository;
-    private readonly auditLogsRepository: AuditLogsRepository;
+  private readonly advisorsRepository: AdvisorsRepository;
+  private readonly subsRepository: SubscriptionsRepository;
+  private readonly auditLogsRepository: AuditLogsRepository;
   constructor() {
     this.assignmentsRepository = new AssignmentsRepository();
     this.advisorsRepository = new AdvisorsRepository();
-    this.usersRepository = new UsersRepository();
+    this.subsRepository = new SubscriptionsRepository();
     this.auditLogsRepository = new AuditLogsRepository();
   }
 
@@ -29,9 +29,19 @@ export class AssignmentsService {
     if (query.advisorId) where.advisorId = query.advisorId;
     if (query.subscriberId) where.subscriberId = query.subscriberId;
 
-    const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where });
+    const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where }) as [any[], number];
+    type FormattedAssignment = Omit<SubscriberAssignment, "subscriber"> & {
+      user: TUserSelect;
+    };
 
-    return paginateResult(assignments, total, pagination);
+    const formattedAssignments: FormattedAssignment[] = assignments.map(
+      ({ subscriber, ...rest }) => ({
+        ...rest,
+        subscriber: subscriber.user as TUserSelect,
+      })
+    );
+
+    return paginateResult(formattedAssignments, total, pagination);
   }
 
   async assignSubscriber(
@@ -41,15 +51,16 @@ export class AssignmentsService {
   ): Promise<SubscriberAssignment> {
     console.log('Assigning subscriber:', subscriberId, advisorId, assignedBy);
     // Verify subscriber exists and has SUBSCRIBER role
-    const subscriber = await this.usersRepository.findById(subscriberId);
-    if (!subscriber) throw new NotFoundError('Subscriber');
-    if (subscriber.role !== 'SUBSCRIBER') {
+    const subscriber = await this.subsRepository.findOne({ id: subscriberId });
+    console.log('Subscriber found:', subscriber);
+    if (!subscriber) throw new NotFoundError('Subscriber not found');
+    if (subscriber.user.role !== 'SUBSCRIBER') {
       throw new ValidationError('User is not a subscriber.');
     }
 
     // Verify advisor exists
     const advisor = await this.advisorsRepository.findById(advisorId);
-    if (!advisor) throw new NotFoundError('Advisor');
+    if (!advisor) throw new NotFoundError('Advisor not found');
 
     if (!advisor.isAvailable) {
       throw new ConflictError('Advisor is not available for assignments.');
@@ -66,13 +77,31 @@ export class AssignmentsService {
     }
 
     // Create assignment
+    //     await prisma.subscriberAssignment.create({
+    //   data: 
+    // });
     const assignment = await this.assignmentsRepository.create({
-      subscriberId,
-      advisorId,
-      assignedBy,
       assignedAt: new Date(),
       isActive: true,
-    });
+
+      subscriber: {
+        connect: {
+          id: subscriberId,
+        },
+      },
+
+      advisor: {
+        connect: {
+          id: advisorId,
+        },
+      },
+
+      assignedByUser: {
+        connect: {
+          id: assignedBy,
+        },
+      },
+    },);
 
     // Update advisor client count
     await this.advisorsRepository.update(advisorId, {

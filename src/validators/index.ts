@@ -1,7 +1,6 @@
 export {
   signUpSchema,
   signInSchema,
-  refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   paddleSignUpSchema,

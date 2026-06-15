@@ -1,8 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { AuthService } from '../services/auth.service';
-import { AuthRepository } from '../repositories/implementations/auth.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
-import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { sendRegistrationEmail } from '../services/email.service';
 
 // ============================================================

@@ -21,9 +21,7 @@ model User {
   goals                 Goal[]
   meetingsAsSubscriber  Meeting[]              @relation("SubscriberMeetings")
   notifications         Notification[]
-  refreshTokens         RefreshToken[]
   assignmentsCreated    SubscriberAssignment[] @relation("AssignedBy")
-  subscriberAssignment  SubscriberAssignment[] @relation("Subscriber")
   subscription          Subscription?
 
   @@map("users")

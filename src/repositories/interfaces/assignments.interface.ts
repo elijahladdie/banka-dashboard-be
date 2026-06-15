@@ -1,4 +1,4 @@
-import { SubscriberAssignment } from '@prisma/client';
+import { Prisma, SubscriberAssignment } from '@prisma/client';
 
 export interface IAssignmentsRepository {
   findById(id: string): Promise<SubscriberAssignment | null>;
@@ -13,6 +13,6 @@ export interface IAssignmentsRepository {
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
   }): Promise<[SubscriberAssignment[], number]>;
-  create(data: Partial<SubscriberAssignment>): Promise<SubscriberAssignment>;
+  create(data: Prisma.SubscriberAssignmentCreateInput): Promise<SubscriberAssignment>;
   endAssignment(id: string): Promise<SubscriberAssignment>;
 }

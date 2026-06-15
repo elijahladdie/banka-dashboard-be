@@ -33,12 +33,14 @@ export class UsersService {
   }
 
   async findById(id: string): Promise<User> {
-    const user = await this.usersRepository.findById(id);
+    const user = await this.usersRepository.findOne({ id });
+    console.log(`Finding user by ID: ${id}, found:`, user);
     if (!user) throw new NotFoundError('User');
     return user;
   }
 
   async update(id: string, data: Partial<User>, actorId: string): Promise<User> {
+    console.log(`Updating user with ID: ${id} and data:`, data);
     const user = await this.findById(id);
 
     const updated = await this.usersRepository.update(id, data);

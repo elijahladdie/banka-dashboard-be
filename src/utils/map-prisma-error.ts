@@ -10,6 +10,7 @@ export type CleanApiError = {
 
 export function mapPrismaError(err: unknown): CleanApiError | null {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    console.log('Foreign key constraint failed:', err);
     switch (err.code) {
       case 'P2002':
         return {
@@ -57,6 +58,7 @@ export function mapPrismaError(err: unknown): CleanApiError | null {
   }
 
   if (err instanceof Prisma.PrismaClientValidationError) {
+    console.log(err)
     return {
       status: 400,
       code: 176,

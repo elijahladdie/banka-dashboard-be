@@ -249,7 +249,6 @@ const options: swaggerJsdoc.Options = {
           type: 'object',
           properties: {
             accessToken: { type: 'string' },
-            refreshToken: { type: 'string' },
           },
         },
         ApiResponse: {
@@ -385,31 +384,6 @@ const options: swaggerJsdoc.Options = {
           responses: {
             200: { description: 'Signed in successfully, returns user + tokens' },
             401: { description: 'Invalid credentials' },
-          },
-        },
-      },
-      '/api/auth/refresh-token': {
-        post: {
-          tags: ['Authentication'],
-          summary: 'Refresh access token using refresh token',
-          security: [],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['refreshToken'],
-                  properties: {
-                    refreshToken: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: 'New tokens issued' },
-            401: { description: 'Invalid or expired refresh token' },
           },
         },
       },
@@ -1040,35 +1014,6 @@ const options: swaggerJsdoc.Options = {
           tags: ['Analytics'],
           summary: 'Dashboard analytics overview (Admin/Finance)',
           responses: { 200: { description: 'Analytics overview data', content: { 'application/json': { schema: { $ref: '#/components/schemas/AnalyticsOverview' } } } } },
-        },
-      },
-      '/api/analytics/revenue-by-plan': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Revenue breakdown by subscription plan',
-          responses: { 200: { description: 'Revenue by plan' } },
-        },
-      },
-      '/api/analytics/monthly-revenue': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Monthly revenue trend',
-          parameters: [{ name: 'months', in: 'query', schema: { type: 'integer', default: 12 } }],
-          responses: { 200: { description: 'Monthly revenue data' } },
-        },
-      },
-      '/api/analytics/advisor-capacity': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Advisor capacity statistics',
-          responses: { 200: { description: 'Advisor capacity' } },
-        },
-      },
-      '/api/analytics/goal-completion-rate': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Goal completion rate statistics',
-          responses: { 200: { description: 'Goal completion rate' } },
         },
       },
 

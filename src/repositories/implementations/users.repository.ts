@@ -1,14 +1,11 @@
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IUsersRepository } from '../interfaces/users.interface';
 
 export class UsersRepository implements IUsersRepository {
-  async findById(id: string): Promise<User | null> {
-    return prisma.user.findFirst({
-      where: { id, deletedAt: null },
-    });
+  async findOne(where: Prisma.UserWhereInput): Promise<User | null> {
+    return await prisma.user.findFirst({ where });
   }
-
   async findAll(params: {
     skip?: number;
     take?: number;
@@ -28,6 +25,7 @@ export class UsersRepository implements IUsersRepository {
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
+    console.log(`Updating user with ID: ${id} and data:`, data);
     return prisma.user.update({ where: { id }, data });
   }
 

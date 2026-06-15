@@ -4,6 +4,13 @@ import { ResponseHandler } from '../utils/response-handler';
 import { mapPaddleProductsResponse } from '../utils/paddle-mapper';
 import { verifyPaddleSignature, processPaddleWebhook } from '../utils/paddle-webhook';
 import { PADDLE_WEBHOOK_SECRET } from '../utils/constants';
+import prisma from '../utils/prisma';
+
+const PLAN_NAME_MAP: Record<string, string> = {
+  starter: 'STARTER',
+  pro: 'PRO',
+  advanced: 'ADVANCED',
+};
 
 export class PaddleController {
   private readonly paddleService: PaddleService;
@@ -14,18 +21,63 @@ export class PaddleController {
   async getProducts(req: Request, res: Response) {
     const interval = req.query.interval as string | undefined;
 
-    const result = await this.paddleService.listProductsWithPrices();
+    const [result, dbFeatures] = await Promise.all([
+      this.paddleService.listProductsWithPrices(),
+      prisma.planFeature.findMany({
+        orderBy: [{ plan: 'asc' }, { billingInterval: 'asc' }, { sortOrder: 'asc' }],
+      }),
+    ]);
+
     const mapped = mapPaddleProductsResponse(result);
 
-    if (!interval || !mapped?.data) {
-      ResponseHandler.success(res, mapped, 'Paddle products retrieved successfully.');
+    // Group DB features by plan for quick lookup
+    const featuresByPlan = new Map<string, { monthly: string[]; yearly: string[]; targetCustomers: string[] }>();
+    for (const feat of dbFeatures) {
+      const key = feat.plan; // STARTER, PRO, ADVANCED
+      if (!featuresByPlan.has(key)) {
+        featuresByPlan.set(key, { monthly: [], yearly: [], targetCustomers: [] });
+      }
+      const entry = featuresByPlan.get(key)!;
+      const bucket = feat.billingInterval === 'YEARLY' ? entry.yearly : entry.monthly;
+      if (feat.category === 'target_customer') {
+        entry.targetCustomers.push(feat.name);
+      } else {
+        bucket.push(feat.name);
+      }
+    }
+
+    // Attach features to each product by matching on customData.plan or name
+    const enriched = {
+      ...mapped,
+      data: (mapped?.data || []).map((product: any) => {
+        const planKey =
+          PLAN_NAME_MAP[product.customData?.plan?.toLowerCase()] ||
+          PLAN_NAME_MAP[product.name?.toLowerCase()];
+
+        const planFeatures = planKey ? featuresByPlan.get(planKey) : undefined;
+
+        return {
+          ...product,
+          features: planFeatures
+            ? {
+                monthly: planFeatures.monthly,
+                yearly: planFeatures.yearly,
+                targetCustomers: planFeatures.targetCustomers,
+              }
+            : null,
+        };
+      }),
+    };
+
+    if (!interval || !enriched?.data) {
+      ResponseHandler.success(res, enriched, 'Paddle products retrieved successfully.');
       return;
     }
 
     // Filter each product's prices array by the requested billing interval
     const filtered = {
-      ...mapped,
-      data: mapped.data
+      ...enriched,
+      data: enriched.data
         .map((product: any) => ({
           ...product,
           prices: (product.prices || []).filter(
@@ -77,4 +129,19 @@ export class PaddleController {
       console.error('[paddle-webhook] Processing error:', err);
     });
   }
+
+  /**
+   * List completed transactions directly from Paddle.
+   * GET /paddle/transactions
+   */
+  async getTransactions(req: Request, res: Response) {
+    const { after, per_page, status } = req.query;
+    const result = await this.paddleService.listTransactions({
+      after: after as string | undefined,
+      per_page: per_page ? parseInt(per_page as string, 10) : undefined,
+      status: status as string | undefined,
+    });
+    ResponseHandler.success(res, result, 'Transactions retrieved successfully.');
+  }
+
 }

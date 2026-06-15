@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { ForbiddenError, ServerError, UnauthorizedError } from '../helpers';
+import { PADDLE_ENV, PADDLE_API_KEY } from '../utils/constants';
 
 interface PaddleProductQuery {
   id?: string[];
@@ -11,7 +12,6 @@ interface PaddleProductQuery {
   tax_category?: string[];
   type?: 'custom' | 'standard';
 }
-import { PADDLE_ENV, PADDLE_API_KEY } from '../utils/constants';
 
 export class PaddleService {
   private readonly api: AxiosInstance;
@@ -63,6 +63,25 @@ export class PaddleService {
    */
   async listProductsWithPrices(query: PaddleProductQuery = {}) {
     return this.listProducts({ ...query, include: ['prices'] });
+  }
+
+  /**
+   * List transactions (completed payments) from Paddle.
+   * GET /transactions
+   * Requires `transaction.read` permission.
+   */
+  async listTransactions(query: { after?: string; per_page?: number; status?: string } = {}) {
+    try {
+      const params: Record<string, any> = {};
+      if (query.after) params.after = query.after;
+      if (query.per_page) params.per_page = query.per_page;
+      if (query.status) params.status = query.status;
+
+      const { data } = await this.api.get('/transactions', { params });
+      return data;
+    } catch (error: any) {
+      throw this.handlePaddleError(error, 'Failed to fetch transactions from Paddle');
+    }
   }
 
   /**

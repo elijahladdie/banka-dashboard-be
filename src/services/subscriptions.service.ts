@@ -28,13 +28,13 @@ export class SubscriptionsService {
   }
 
   async findById(id: string): Promise<Subscription> {
-    const subscription = await this.subscriptionsRepository.findById(id);
+    const subscription = await this.subscriptionsRepository.findOne({id});
     if (!subscription) throw new NotFoundError('Subscription');
     return subscription;
   }
 
   async findByUserId(userId: string): Promise<Subscription | null> {
-    return this.subscriptionsRepository.findByUserId(userId);
+    return this.subscriptionsRepository.findOne({ userId });
   }
 
   async create(data: Partial<Subscription>, actorId: string): Promise<Subscription> {

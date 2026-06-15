@@ -7,7 +7,6 @@ import { authRateLimiter } from '../middleware/rateLimiter';
 import {
   signUpSchema,
   signInSchema,
-  refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   paddleSignUpSchema,
@@ -24,7 +23,6 @@ router.post('/signup/paddle', authRateLimiter, validateRequest(paddleSignUpSchem
 router.post('/complete-registration', authRateLimiter, validateRequest(completeRegistrationSchema), asyncWrapper(authController.completeRegistration.bind(authController)));
 router.get('/pending-registration', authRateLimiter, asyncWrapper(authController.checkPendingRegistration.bind(authController)));
 router.post('/signin', authRateLimiter, validateRequest(signInSchema), asyncWrapper(authController.signIn.bind(authController)));
-router.post('/refresh-token', validateRequest(refreshTokenSchema), asyncWrapper(authController.refreshToken.bind(authController)));
 router.post('/forgot-password', authRateLimiter, validateRequest(forgotPasswordSchema), asyncWrapper(authController.forgotPassword.bind(authController)));
 router.post('/reset-password', authRateLimiter, validateRequest(resetPasswordSchema), asyncWrapper(authController.resetPassword.bind(authController)));
 

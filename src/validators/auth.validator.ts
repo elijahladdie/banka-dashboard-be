@@ -27,14 +27,6 @@ export const signInSchema = z.object({
   params: z.object({}).optional(),
 });
 
-export const refreshTokenSchema = z.object({
-  body: z.object({
-    refreshToken: z.string().min(1, 'Refresh token is required'),
-  }),
-  query: z.object({}).optional(),
-  params: z.object({}).optional(),
-});
-
 export const forgotPasswordSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address').toLowerCase(),

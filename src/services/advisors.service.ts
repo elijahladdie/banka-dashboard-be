@@ -1,8 +1,8 @@
 import { Advisor, User } from '@prisma/client';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
-import { ConflictError, NotFoundError, ValidationError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { ConflictError, NotFoundError, } from '../helpers';
+import { PaginatedResult, TUserSelect } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class AdvisorsService {
@@ -26,9 +26,9 @@ export class AdvisorsService {
     return paginateResult(advisors, total, pagination);
   }
 
-  async findById(id: string): Promise<Advisor & { user: User }> {
-    const advisor = await this.advisorsRepository.findById(id);
-    if (!advisor) throw new NotFoundError('Advisor');
+  async findById(id: string): Promise<(Advisor & { user: TUserSelect })> {
+    const advisor = await this.advisorsRepository.findById(id) as unknown as (Advisor & { user: TUserSelect }) ;
+    if (!advisor) throw new NotFoundError('No advisor found');
     return advisor;
   }
 

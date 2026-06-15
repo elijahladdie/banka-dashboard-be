@@ -106,36 +106,11 @@ export class AuthService {
     const { passwordHash: _, ...userWithoutPassword } = updatedUser;
     return { user: userWithoutPassword, tokens };
   }
-
-  async refreshToken(refreshTokenStr: string): Promise<AuthTokens> {
-    const storedToken = await this.authRepository.findRefreshToken(refreshTokenStr);
-    if (!storedToken || storedToken.revokedAt) {
-      throw new UnauthorizedError('Invalid or revoked refresh token.');
-    }
-
-    if (new Date() > storedToken.expiresAt) {
-      throw new UnauthorizedError('Refresh token has expired.');
-    }
-
-    const user = await this.authRepository.findById(storedToken.userId);
-    if (!user || user.deletedAt) {
-      throw new UnauthorizedError('User not found.');
-    }
-
-    // Revoke old token
-    await this.authRepository.revokeRefreshToken(storedToken.id);
-
-    // Generate new tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
-    return tokens;
-  }
-
   async signUpFromPaddle(input: PaddleSignUpInput): Promise<{ user: any }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
     if (existingUser) {
       // User already exists — create subscription if missing, or update customerId
-      const existingSub = await this.subscriptionsRepository.findByUserId(existingUser.id);
+      const existingSub = await this.subscriptionsRepository.findOne({ userId: existingUser.id });
       if (existingSub) {
         await this.subscriptionsRepository.update(existingSub.id, {
           customerId: input.customerId || existingSub.customerId,
@@ -191,7 +166,7 @@ export class AuthService {
    */
   async updateSubscriptionFromPaddle(input: PaddleSubscriptionUpdateInput): Promise<any | null> {
     // Find subscription by Paddle customerId
-    const subscription = await this.subscriptionsRepository.findByCustomerId(input.customerId);
+    const subscription = await this.subscriptionsRepository.findOne({ customerId: input.customerId });
     if (!subscription) return null;
 
     // Update the subscription's paddle subscriptionId
@@ -255,8 +230,6 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<void> {
-    await this.authRepository.revokeAllUserRefreshTokens(userId);
-
     await this.auditLogsRepository.create({
       userId,
       action: 'USER_SIGNED_OUT',
@@ -313,13 +286,7 @@ export class AuthService {
   ): Promise<AuthTokens> {
     const payload: JwtPayload = { userId, email, role };
 
-    const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: 900 });
-
-    const refreshToken = uuidv4();
-    const expiresAt = new Date(Date.now() + TOKEN.REFRESH_TOKEN_EXPIRY_MS);
-
-    await this.authRepository.saveRefreshToken(userId, refreshToken, expiresAt);
-
-    return { accessToken, refreshToken };
+    const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
+    return { accessToken} ;
   }
 }

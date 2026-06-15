@@ -1,7 +1,7 @@
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 
 export interface IUsersRepository {
-  findById(id: string): Promise<User | null>;
+  findOne(where: Prisma.UserWhereInput): Promise<User | null>;
   findAll(params: {
     skip?: number;
     take?: number;

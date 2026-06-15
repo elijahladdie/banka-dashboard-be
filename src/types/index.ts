@@ -1,3 +1,4 @@
+import { UserRole, UserStatus } from '@prisma/client';
 import { Request } from 'express';
 
 export interface JwtPayload {
@@ -39,7 +40,6 @@ export interface ApiResponse<T = any> {
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface SignUpInput {
@@ -90,10 +90,6 @@ export interface ResetPasswordInput {
   password: string;
 }
 
-export interface RefreshTokenInput {
-  refreshToken: string;
-}
-
 export interface AuditLogInput {
   userId: string;
   action: string;
@@ -103,4 +99,68 @@ export interface AuditLogInput {
   newValues?: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
+}
+export interface TUserSelect {
+  id: string,
+  firstName: string,
+  lastName: string,
+  email: string,
+  phoneNumber: string,
+  status: UserStatus,
+  role: UserRole,
+}
+
+export interface AnalyticsOverview {
+  users: {
+    total: number;
+    subscribers: number;
+    advisors: number;
+    admins: number;
+    newSubscribersLast30Days: number;
+  };
+
+  subscriptions: {
+    active: number;
+    inactive: number;
+    cancelled: number;
+
+    monthlyPlans: number;
+    yearlyPlans: number;
+
+    monthlyPercentage: number;
+    yearlyPercentage: number;
+  };
+
+  goals: {
+    total: number;
+    active: number;
+    completed: number;
+    cancelled: number;
+
+    completionRate: number;
+  };
+
+  advisorCapacity: {
+    totalCapacity: number;
+    utilizedCapacity: number;
+    availableCapacity: number;
+    utilizationRate: number;
+  };
+
+  trends: {
+    subscribers: {
+      month: string;
+      count: number;
+    }[];
+
+    subscriptions: {
+      month: string;
+      count: number;
+    }[];
+
+    goals: {
+      month: string;
+      count: number;
+    }[];
+  };
 }

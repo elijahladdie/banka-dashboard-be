@@ -33,13 +33,6 @@ export class AuthController {
     const { user, tokens } = await this.authService.signIn(req.body);
     ResponseHandler.success(res, { user, tokens }, 'Signed in successfully.');
   }
-
-  async refreshToken(req: Request, res: Response) {
-    const { refreshToken } = req.body;
-    const tokens = await this.authService.refreshToken(refreshToken);
-    ResponseHandler.success(res, { tokens }, 'Token refreshed successfully.');
-  }
-
   async logout(req: AuthenticatedRequest, res: Response) {
     await this.authService.logout(req.user!.userId);
     ResponseHandler.success(res, null, 'Signed out successfully.');

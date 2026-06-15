@@ -214,3 +214,16 @@ export const ERROR_CODES = {
   ADVISOR_UNAVAILABLE: 'ADVISOR_UNAVAILABLE',
   MAX_CLIENTS_REACHED: 'MAX_CLIENTS_REACHED',
 } as const;
+export const INCLUDE_USER = {
+  user: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phoneNumber: true,
+      status: true,
+      role: true,
+    },
+  },
+};
