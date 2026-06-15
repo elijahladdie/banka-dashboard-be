@@ -19,7 +19,7 @@ export interface PaginationParams {
 
 export interface PaginatedResult<T> {
   data: T[];
-  meta: {
+  pagination: {
     page: number;
     limit: number;
     total: number;
@@ -48,6 +48,32 @@ export interface SignUpInput {
   firstName: string;
   lastName: string;
   phoneNumber?: string;
+}
+
+export interface PaddleSignUpInput {
+  email: string;
+  fullName: string;
+  source: 'paddle';
+  subscriptionId: string;
+  customerId: string;
+}
+
+export interface PaddleSubscriptionUpdateInput {
+  customerId: string;
+  subscriptionId: string;
+}
+
+export interface CompleteRegistrationInput {
+  email: string;
+  phone: string;
+  password: string;
+}
+
+export interface PendingRegistrationResult {
+  exists: boolean;
+  email?: string;
+  fullName?: string;
+  registrationCompleted?: boolean;
 }
 
 export interface SignInInput {

@@ -23,7 +23,7 @@ const formatMessage = (level: LogLevel, message: string, meta?: any): string => 
   return `[${timestamp}] [${level}] ${message}${metaStr}`;
 };
 
-export const logger = {
+const logger = {
   error(message: string, meta?: any): void {
     if (getLogLevel() >= LOG_LEVELS.ERROR) {
       console.error(formatMessage('ERROR', message, meta));
@@ -48,3 +48,6 @@ export const logger = {
     }
   },
 };
+
+export { logger };
+export default logger;

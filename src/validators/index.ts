@@ -4,4 +4,6 @@ export {
   refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  paddleSignUpSchema,
+  completeRegistrationSchema,
 } from './auth.validator';

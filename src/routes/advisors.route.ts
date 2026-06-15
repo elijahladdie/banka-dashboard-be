@@ -3,6 +3,7 @@ import { AdvisorsController } from '../controllers/advisors.controller';
 import { AdvisorsService } from '../services/advisors.service';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
+import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard, rolesGuard } from '../middleware';
 import { ROLES } from '../constants';
 
@@ -18,33 +19,33 @@ router.use(jwtAuthGuard);
 router.get(
   '/',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR),
-  advisorsController.findAll
+  asyncWrapper(advisorsController.findAll.bind(advisorsController))
 );
 
-router.get('/:id', advisorsController.findById);
+router.get('/:id', asyncWrapper(advisorsController.findById.bind(advisorsController)));
 
 router.post(
   '/',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
-  advisorsController.create
+  asyncWrapper(advisorsController.create.bind(advisorsController))
 );
 
 router.put(
   '/:id',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
-  advisorsController.update
+  asyncWrapper(advisorsController.update.bind(advisorsController))
 );
 
 router.patch(
   '/:id/toggle-availability',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
-  advisorsController.toggleAvailability
+  asyncWrapper(advisorsController.toggleAvailability.bind(advisorsController))
 );
 
 router.delete(
   '/:id',
   rolesGuard(ROLES.PLATFORM_ADMIN),
-  advisorsController.delete
+  asyncWrapper(advisorsController.delete.bind(advisorsController))
 );
 
 export default router;

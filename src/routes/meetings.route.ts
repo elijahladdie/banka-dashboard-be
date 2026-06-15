@@ -3,6 +3,7 @@ import { MeetingsController } from '../controllers/meetings.controller';
 import { MeetingsService } from '../services/meetings.service';
 import { MeetingsRepository } from '../repositories/implementations/meetings.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
+import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard, rolesGuard } from '../middleware';
 import { ROLES } from '../constants';
 
@@ -18,13 +19,13 @@ router.use(jwtAuthGuard);
 router.get(
   '/',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR),
-  meetingsController.findAll
+  asyncWrapper(meetingsController.findAll.bind(meetingsController))
 );
 
-router.get('/:id', meetingsController.findById);
-router.post('/', meetingsController.create);
-router.put('/:id', meetingsController.update);
-router.patch('/:id/status', meetingsController.updateStatus);
-router.delete('/:id', meetingsController.delete);
+router.get('/:id', asyncWrapper(meetingsController.findById.bind(meetingsController)));
+router.post('/', asyncWrapper(meetingsController.create.bind(meetingsController)));
+router.put('/:id', asyncWrapper(meetingsController.update.bind(meetingsController)));
+router.patch('/:id/status', asyncWrapper(meetingsController.updateStatus.bind(meetingsController)));
+router.delete('/:id', asyncWrapper(meetingsController.delete.bind(meetingsController)));
 
 export default router;

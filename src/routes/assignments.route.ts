@@ -5,6 +5,7 @@ import { AssignmentsRepository } from '../repositories/implementations/assignmen
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { UsersRepository } from '../repositories/implementations/users.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
+import { asyncWrapper } from '../utils/async-wrapper';
 import { jwtAuthGuard, rolesGuard } from '../middleware';
 import { ROLES } from '../constants';
 
@@ -27,24 +28,24 @@ router.use(jwtAuthGuard);
 router.get(
   '/',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
-  assignmentsController.findAll
+  asyncWrapper(assignmentsController.findAll.bind(assignmentsController))
 );
 
 router.post(
   '/assign',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
-  assignmentsController.assign
+  asyncWrapper(assignmentsController.assign.bind(assignmentsController))
 );
 
 router.get(
   '/active/:subscriberId',
-  assignmentsController.getActiveAssignment
+  asyncWrapper(assignmentsController.getActiveAssignment.bind(assignmentsController))
 );
 
 router.post(
   '/:id/end',
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
-  assignmentsController.endAssignment
+  asyncWrapper(assignmentsController.endAssignment.bind(assignmentsController))
 );
 
 export default router;

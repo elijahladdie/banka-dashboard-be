@@ -9,6 +9,8 @@ export interface IAuthRepository {
     firstName: string;
     lastName: string;
     phoneNumber?: string;
+    registrationCompleted?: boolean;
+    source?: string;
   }): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
   saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<RefreshToken>;

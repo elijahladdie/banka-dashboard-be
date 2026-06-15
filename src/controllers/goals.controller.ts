@@ -1,80 +1,52 @@
 import { Request, Response } from 'express';
 import { GoalsService } from '../services/goals.service';
 import { AuthenticatedRequest } from '../types';
-import { HTTP_STATUS } from '../constants';
-import { asyncHandler } from '../helpers';
+import { ResponseHandler } from '../utils/response-handler';
 
 export class GoalsController {
   constructor(private readonly goalsService: GoalsService) {}
 
-  findAll = asyncHandler(async (req: Request, res: Response) => {
+  async findAll(req: Request, res: Response) {
     const result = await this.goalsService.findAll(req.query);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Goals retrieved successfully.',
-      ...result,
-    });
-  });
+    ResponseHandler.success(res, result, 'Goals retrieved successfully.');
+  }
 
-  findById = asyncHandler(async (req: Request, res: Response) => {
+  async findById(req: Request, res: Response) {
     const goal = await this.goalsService.findById(req.params.id);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Goal retrieved successfully.',
-      data: goal,
-    });
-  });
+    ResponseHandler.success(res, goal, 'Goal retrieved successfully.');
+  }
 
-  findBySubscriber = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  async findBySubscriber(req: AuthenticatedRequest, res: Response) {
     const subscriberId = req.params.subscriberId || req.user!.userId;
     const result = await this.goalsService.findBySubscriber(subscriberId, req.query);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Goals retrieved successfully.',
-      ...result,
-    });
-  });
+    ResponseHandler.success(res, result, 'Goals retrieved successfully.');
+  }
 
-  create = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  async create(req: AuthenticatedRequest, res: Response) {
     const goal = await this.goalsService.create(
       { ...req.body, subscriberId: req.user!.userId },
       req.user!.userId
     );
-    res.status(HTTP_STATUS.CREATED).json({
-      success: true,
-      message: 'Goal created successfully.',
-      data: goal,
-    });
-  });
+    ResponseHandler.success(res, goal, 'Goal created successfully.', 100, 201);
+  }
 
-  update = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  async update(req: AuthenticatedRequest, res: Response) {
     const goal = await this.goalsService.update(req.params.id, req.body, req.user!.userId);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Goal updated successfully.',
-      data: goal,
-    });
-  });
+    ResponseHandler.success(res, goal, 'Goal updated successfully.');
+  }
 
-  updateProgress = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  async updateProgress(req: AuthenticatedRequest, res: Response) {
     const { currentAmount } = req.body;
     const goal = await this.goalsService.updateProgress(
       req.params.id,
       currentAmount,
       req.user!.userId
     );
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Goal progress updated successfully.',
-      data: goal,
-    });
-  });
+    ResponseHandler.success(res, goal, 'Goal progress updated successfully.');
+  }
 
-  delete = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  async delete(req: AuthenticatedRequest, res: Response) {
     await this.goalsService.softDelete(req.params.id, req.user!.userId);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Goal deleted successfully.',
-    });
-  });
+    ResponseHandler.success(res, null, 'Goal deleted successfully.');
+  }
 }

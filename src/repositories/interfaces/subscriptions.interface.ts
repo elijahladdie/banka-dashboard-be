@@ -3,6 +3,7 @@ import { Subscription } from '@prisma/client';
 export interface ISubscriptionsRepository {
   findById(id: string): Promise<Subscription | null>;
   findByUserId(userId: string): Promise<Subscription | null>;
+  findByCustomerId(customerId: string): Promise<Subscription | null>;
   findAll(params: {
     skip?: number;
     take?: number;

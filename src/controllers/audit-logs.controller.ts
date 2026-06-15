@@ -1,26 +1,17 @@
 import { Request, Response } from 'express';
 import { AuditLogsService } from '../services/audit-logs.service';
-import { HTTP_STATUS } from '../constants';
-import { asyncHandler } from '../helpers';
+import { ResponseHandler } from '../utils/response-handler';
 
 export class AuditLogsController {
   constructor(private readonly auditLogsService: AuditLogsService) {}
 
-  findAll = asyncHandler(async (req: Request, res: Response) => {
+  async findAll(req: Request, res: Response) {
     const result = await this.auditLogsService.findAll(req.query);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Audit logs retrieved successfully.',
-      ...result,
-    });
-  });
+    ResponseHandler.success(res, result, 'Audit logs retrieved successfully.');
+  }
 
-  findById = asyncHandler(async (req: Request, res: Response) => {
+  async findById(req: Request, res: Response) {
     const log = await this.auditLogsService.findById(req.params.id);
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: 'Audit log retrieved successfully.',
-      data: log,
-    });
-  });
+    ResponseHandler.success(res, log, 'Audit log retrieved successfully.');
+  }
 }
