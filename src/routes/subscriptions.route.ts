@@ -12,7 +12,7 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
+  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCIAL_ADVISOR),
   asyncWrapper(subscriptionsController.findAll.bind(subscriptionsController))
 );
 

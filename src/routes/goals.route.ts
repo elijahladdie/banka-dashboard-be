@@ -28,6 +28,5 @@ router.post(
 
 router.put('/:id', asyncWrapper(goalsController.update.bind(goalsController)));
 router.patch('/:id/progress', asyncWrapper(goalsController.updateProgress.bind(goalsController)));
-router.delete('/:id', asyncWrapper(goalsController.delete.bind(goalsController)));
 
 export default router;

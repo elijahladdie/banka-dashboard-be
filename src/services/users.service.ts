@@ -4,6 +4,7 @@ import { AuditLogsRepository } from '../repositories/implementations/audit-logs.
 import { NotFoundError } from '../helpers';
 import { PaginatedResult, PaginationParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import logger from '../utils/logger';
 
 export class UsersService {
   private readonly usersRepository: UsersRepository;
@@ -34,13 +35,13 @@ export class UsersService {
 
   async findById(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({ id });
-    console.log(`Finding user by ID: ${id}, found:`, user);
+    logger.info(`Finding user by ID: ${id}, found:`, user);
     if (!user) throw new NotFoundError('User');
     return user;
   }
 
   async update(id: string, data: Partial<User>, actorId: string): Promise<User> {
-    console.log(`Updating user with ID: ${id} and data:`, data);
+    logger.info(`Updating user with ID: ${id} and data:`, data);
     const user = await this.findById(id);
 
     const updated = await this.usersRepository.update(id, data);

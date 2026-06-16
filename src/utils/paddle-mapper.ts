@@ -82,3 +82,8 @@ export function mapPaddleProductsResponse(response: any) {
     data: (response.data || []).map(mapPaddleProduct),
   };
 }
+
+export const mergeSummary = (existing: string | null, incoming: string[]) => {
+  const base = existing ? [existing] : [];
+  return [...base, ...incoming.filter(Boolean)].join(' ');
+};

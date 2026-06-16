@@ -79,18 +79,4 @@ export class MeetingsService {
 
     return updated;
   }
-
-  async delete(id: string, actorId: string): Promise<Meeting> {
-    await this.findById(id);
-    const deleted = await this.meetingsRepository.delete(id);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'MEETING_DELETED',
-      entityType: 'Meeting',
-      entityId: id,
-    });
-
-    return deleted;
-  }
 }

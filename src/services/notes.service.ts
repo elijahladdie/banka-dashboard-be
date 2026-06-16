@@ -37,9 +37,4 @@ export class NotesService {
     await this.findById(id);
     return prisma.advisoryNote.update({ where: { id }, data });
   }
-
-  async delete(id: string): Promise<AdvisoryNote> {
-    await this.findById(id);
-    return prisma.advisoryNote.delete({ where: { id } });
-  }
 }

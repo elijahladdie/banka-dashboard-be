@@ -14,7 +14,6 @@ export class SubscriptionsService {
   }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Subscription>> {
-    console.log('Finding subscriptions with query:', query);
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 

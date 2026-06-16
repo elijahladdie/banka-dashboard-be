@@ -44,8 +44,4 @@ export class NotificationsRepository implements INotificationsRepository {
       data: { readAt: new Date() },
     });
   }
-
-  async delete(id: string): Promise<Notification> {
-    return prisma.notification.delete({ where: { id } });
-  }
 }

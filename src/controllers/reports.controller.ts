@@ -28,9 +28,4 @@ export class ReportsController {
     const report = await this.reportsService.update(req.params.id, req.body, req.user!.userId);
     ResponseHandler.success(res, report, 'Report updated successfully.');
   }
-
-  async delete(req: AuthenticatedRequest, res: Response) {
-    await this.reportsService.delete(req.params.id, req.user!.userId);
-    ResponseHandler.success(res, null, 'Report deleted successfully.');
-  }
 }

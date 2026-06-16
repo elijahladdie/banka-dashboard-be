@@ -61,6 +61,7 @@ export interface PaddleSignUpInput {
 export interface PaddleSubscriptionUpdateInput {
   customerId: string;
   subscriptionId: string;
+  paddleEvent: Record<string, any>;
 }
 
 export interface CompleteRegistrationInput {

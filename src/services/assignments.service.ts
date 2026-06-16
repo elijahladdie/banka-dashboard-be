@@ -1,4 +1,4 @@
-import { SubscriberAssignment } from '@prisma/client';
+import { Prisma, SubscriberAssignment } from '@prisma/client';
 import { AssignmentsRepository } from '../repositories/implementations/assignments.repository';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
@@ -6,6 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../helpers';
 import { PaginatedResult, TUserSelect } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
+import logger from '../utils/logger';
 
 export class AssignmentsService {
   private readonly assignmentsRepository: AssignmentsRepository;
@@ -20,14 +21,14 @@ export class AssignmentsService {
   }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<SubscriberAssignment>> {
-    console.log('Finding assignments with query:', query);
+    logger.info('Finding assignments with query:', query);
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
-    const where: Record<string, any> = {};
+    const where: Prisma.SubscriberAssignmentWhereInput = {};
     if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
     if (query.advisorId) where.advisorId = query.advisorId;
-    if (query.subscriberId) where.subscriberId = query.subscriberId;
+    if (query.subscriberId) where.subscriber = { user: { id: query.subscriberId } };
 
     const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where }) as [any[], number];
     type FormattedAssignment = Omit<SubscriberAssignment, "subscriber"> & {
@@ -49,10 +50,9 @@ export class AssignmentsService {
     advisorId: string,
     assignedBy: string
   ): Promise<SubscriberAssignment> {
-    console.log('Assigning subscriber:', subscriberId, advisorId, assignedBy);
     // Verify subscriber exists and has SUBSCRIBER role
     const subscriber = await this.subsRepository.findOne({ id: subscriberId });
-    console.log('Subscriber found:', subscriber);
+    logger.info('Subscriber found:', subscriber);
     if (!subscriber) throw new NotFoundError('Subscriber not found');
     if (subscriber.user.role !== 'SUBSCRIBER') {
       throw new ValidationError('User is not a subscriber.');

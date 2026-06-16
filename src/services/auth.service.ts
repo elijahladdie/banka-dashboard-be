@@ -22,15 +22,21 @@ import {
 } from '../helpers';
 import { TOKEN } from '../constants';
 import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET } from '../utils/constants';
+import { sendRegistrationEmail, sendSubsUpgradeEmail } from './email.service';
+import { ReportsRepository } from '../repositories/implementations/reports.repository';
+import { mergeSummary } from '../utils/paddle-mapper';
+import logger from '../utils/logger';
 
 export class AuthService {
   private readonly authRepository: AuthRepository;
   private readonly auditLogsRepository: AuditLogsRepository;
   private readonly subscriptionsRepository: SubscriptionsRepository;
+  private readonly reportsRepository: ReportsRepository;
   constructor() {
     this.authRepository = new AuthRepository();
     this.auditLogsRepository = new AuditLogsRepository();
     this.subscriptionsRepository = new SubscriptionsRepository();
+    this.reportsRepository = new ReportsRepository();
   }
 
   async signUp(input: SignUpInput): Promise<{ user: any; tokens: AuthTokens }> {
@@ -158,30 +164,206 @@ export class AuthService {
     return { user: userWithoutPassword };
   }
 
-  /**
-   * Update a user's subscription info from a Paddle transaction/subscription event.
-   * Finds the subscription by customerId (stored in the Subscription model) and updates
-   * the subscriptionId. Returns the user through the subscription relation, or null
-   * if no subscription with that customerId exists.
-   */
-  async updateSubscriptionFromPaddle(input: PaddleSubscriptionUpdateInput): Promise<any | null> {
-    // Find subscription by Paddle customerId
-    const subscription = await this.subscriptionsRepository.findOne({ customerId: input.customerId });
-    if (!subscription) return null;
-
-    // Update the subscription's paddle subscriptionId
-    await this.subscriptionsRepository.update(subscription.id, {
-      subscriptionId: input.subscriptionId || subscription.subscriptionId,
+  async updateSubscriptionFromPaddle(
+    input: PaddleSubscriptionUpdateInput
+  ): Promise<any | null> {
+    const subscription = await this.subscriptionsRepository.findOne({
+      customerId: input.customerId,
     });
 
-    // Return the user (without password hash)
-    const user = await this.authRepository.findById(subscription.userId);
+    if (!subscription) return null;
+
+    const paddleEvent = input.paddleEvent;
+
+    const lineItem =
+      paddleEvent?.data?.details?.line_items?.[0] ??
+      paddleEvent?.details?.line_items?.[0];
+    const product =
+      lineItem?.product?.name ??
+      lineItem?.price?.name ??
+      'ADVANCED';
+
+    const amount = Number(
+      paddleEvent?.data?.details?.totals?.grand_total ??
+      paddleEvent?.details?.totals?.grand_total ??
+      0
+    );
+
+    const currency =
+      paddleEvent?.data?.currency_code ??
+      paddleEvent?.currency_code ??
+      'USD';
+
+    const previousPlan = subscription.plan;
+
+    const isUpgrade =
+      previousPlan &&
+      previousPlan !== product;
+
+    await this.subscriptionsRepository.update(subscription.id, {
+      subscriptionId:
+        input.subscriptionId || subscription.subscriptionId,
+
+      plan: product?.toUpperCase(),
+
+      status: 'ACTIVE',
+    });
+
+    const user = await this.authRepository.findById(
+      subscription.userId
+    );
+
     if (!user) return null;
 
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    const now = new Date();
+
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+
+    const isQuarterEnd =
+      (month === 3 && day === 31) ||
+      (month === 6 && day === 30) ||
+      (month === 9 && day === 30) ||
+      (month === 12 && day === 31);
+
+    const isYearEnd =
+      month === 12 && day === 31;
+    if (isQuarterEnd) {
+      const quarter = Math.ceil(month / 3);
+      const quarterTitle = `Q${quarter} Financial Summary ${now.getFullYear()}`;
+
+      const existingQuarterly = await this.reportsRepository.findOne({
+        subscriber: { id: user.id },
+        reportType: 'QUARTERLY',
+        title: quarterTitle,
+      });
+
+      const quarterlySummaryParts = [
+        `Quarterly account review for Q${quarter}.`,
+        `Current subscription: ${product}.`,
+        `Latest payment: ${amount} ${currency}.`,
+        isUpgrade
+          ? `Subscription upgraded from ${previousPlan} to ${product}.`
+          : '',
+      ];
+
+      if (existingQuarterly) {
+        await this.reportsRepository.update(existingQuarterly.id, {
+          summary: mergeSummary(existingQuarterly.summary, quarterlySummaryParts),
+        });
+      } else {
+        await this.reportsRepository.create({
+          subscriber: {
+            connect: { id: user.id },
+          },
+          reportType: 'QUARTERLY',
+          title: quarterTitle,
+          summary: quarterlySummaryParts.filter(Boolean).join(' '),
+        });
+      }
+    }
+    if (isYearEnd) {
+      const annualTitle = `Annual Financial Report ${now.getFullYear()}`;
+
+      const existingAnnual = await this.reportsRepository.findOne({
+        subscriber: { id: user.id },
+        reportType: 'ANNUAL',
+        title: annualTitle,
+      });
+
+      const annualSummaryParts = [
+        `Annual subscription review.`,
+        `Current active plan: ${product}.`,
+        `Latest payment amount: ${amount} ${currency}.`,
+        isUpgrade
+          ? `Subscription upgraded during the year.`
+          : '',
+      ];
+
+      if (existingAnnual) {
+        await this.reportsRepository.update(existingAnnual.id, {
+          summary: mergeSummary(existingAnnual.summary, annualSummaryParts),
+        });
+      } else {
+        await this.reportsRepository.create({
+          subscriber: {
+            connect: { id: user.id },
+          },
+          reportType: 'ANNUAL',
+          title: annualTitle,
+          summary: annualSummaryParts.filter(Boolean).join(' '),
+        });
+      }
+    }
+    await this.reportsRepository.create({
+      subscriber: {
+        connect: { id: user.id },
+      },
+      reportType: 'MONTHLY',
+      title: isUpgrade
+        ? `Subscription Upgrade - ${product}`
+        : `Subscription Payment - ${product}`,
+      summary: isUpgrade
+        ? `Customer upgraded from ${previousPlan} to ${product}. Payment received: ${amount} ${currency}.`
+        : `Payment received for ${product}. Amount: ${amount} ${currency}.`,
+    });
+    // check if the time is in quarter period and if so, create a quarterly report as well or if it;s in the end of the year create report for this year
+    await this.auditLogsRepository.create({
+      userId: user.id,
+      action: isUpgrade
+        ? 'SUBSCRIPTION_UPGRADED'
+        : 'SUBSCRIPTION_PAYMENT_RECEIVED',
+
+      entityType: 'Subscription',
+      entityId: subscription.id,
+
+      newValues: {
+        plan: product?.toUpperCase(),
+        amount,
+        currency,
+        subscriptionId: input.subscriptionId,
+      },
+    });
+
+    // Upgrade email
+    if (isUpgrade) {
+      sendSubsUpgradeEmail({
+        email: user.email,
+        firstName: user.firstName,
+        previousPlan,
+        newPlan: product?.toUpperCase(),
+        amount,
+        currency,
+      }).catch((error: any) => {
+        logger.error(
+          '[auth-service] Failed to send upgrade email',
+          error
+        );
+      });
+    }
+
+    // Registration email
+    if (!user.registrationCompleted) {
+      const displayName =
+        user.firstName ||
+        user.email.split('@')[0];
+
+      sendRegistrationEmail(
+        user.email,
+        displayName
+      ).catch((error) => {
+        logger.error(
+          '[auth-service] Failed to send registration email',
+          error
+        );
+      });
+    }
+
+    const { passwordHash: _, ...userWithoutPassword } =
+      user;
+
     return userWithoutPassword;
   }
-
   async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; tokens: AuthTokens }> {
     const user = await this.authRepository.findByEmail(input.email);
     if (!user) {
@@ -287,6 +469,6 @@ export class AuthService {
     const payload: JwtPayload = { userId, email, role };
 
     const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
-    return { accessToken} ;
+    return { accessToken };
   }
 }

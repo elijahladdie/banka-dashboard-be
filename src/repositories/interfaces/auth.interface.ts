@@ -1,4 +1,4 @@
-import { User, RefreshToken } from '@prisma/client';
+import { User } from '@prisma/client';
 
 export interface IAuthRepository {
   findByEmail(email: string): Promise<User | null>;

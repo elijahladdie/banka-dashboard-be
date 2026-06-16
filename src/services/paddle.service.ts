@@ -1,6 +1,11 @@
+import { Request } from 'express';
 import axios, { AxiosInstance } from 'axios';
 import { ForbiddenError, ServerError, UnauthorizedError } from '../helpers';
-import { PADDLE_ENV, PADDLE_API_KEY } from '../utils/constants';
+import { PADDLE_ENV, PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET } from '../utils/constants';
+import prisma from '../utils/prisma';
+import { mapPaddleProductsResponse } from '../utils/paddle-mapper';
+import { processPaddleWebhook, verifyPaddleSignature } from '../utils/paddle-webhook';
+import logger from '../utils/logger';
 
 interface PaddleProductQuery {
   id?: string[];
@@ -10,9 +15,15 @@ interface PaddleProductQuery {
   order_by?: string;
   status?: string[];
   tax_category?: string[];
+  interval?: 'month' | 'year';
   type?: 'custom' | 'standard';
 }
 
+const PLAN_NAME_MAP: Record<string, string> = {
+  starter: 'STARTER',
+  pro: 'PRO',
+  advanced: 'ADVANCED',
+};
 export class PaddleService {
   private readonly api: AxiosInstance;
 
@@ -62,9 +73,119 @@ export class PaddleService {
    * GET /products?include=prices
    */
   async listProductsWithPrices(query: PaddleProductQuery = {}) {
-    return this.listProducts({ ...query, include: ['prices'] });
-  }
+    const { interval = 'year' } = query;
+    const [result, dbFeatures] = await Promise.all([
+      this.listProducts({ ...query, include: ['prices'] }),
+      prisma.planFeature.findMany({
+        orderBy: [
+          { plan: 'asc' },
+          { billingInterval: 'asc' },
+          { sortOrder: 'asc' },
+        ],
+      }),
+    ])
 
+    const mapped = mapPaddleProductsResponse(result);
+
+    const featuresByPlan = new Map<
+      string,
+      {
+        monthly: string[];
+        yearly: string[];
+      }
+    >();
+
+    for (const feature of dbFeatures) {
+      if (feature.category === 'target_customer') continue;
+
+      const key = feature.plan;
+
+      if (!featuresByPlan.has(key)) {
+        featuresByPlan.set(key, {
+          monthly: [],
+          yearly: [],
+        });
+      }
+
+      const entry = featuresByPlan.get(key)!;
+
+      if (feature.billingInterval === 'YEARLY') {
+        entry.yearly.push(feature.name);
+      } else {
+        entry.monthly.push(feature.name);
+      }
+    }
+
+    const products = (mapped?.data || [])
+      .map((product: any) => {
+        const planKey =
+          PLAN_NAME_MAP[product.customData?.plan?.toLowerCase()] ||
+          PLAN_NAME_MAP[product.name?.toLowerCase()];
+
+        const selectedPrice = (product.prices || []).find(
+          (price: any) => price.billingCycle?.interval === interval
+        );
+
+        if (!selectedPrice) {
+          return null;
+        }
+
+        const planFeatures = planKey
+          ? featuresByPlan.get(planKey)
+          : undefined;
+
+        return {
+          id: product.id,
+          name: product.name,
+          type: product.type,
+          description: product.description,
+          taxCategory: product.taxCategory,
+          imageUrl: product.imageUrl,
+          customData: product.customData,
+          status: product.status,
+
+          billingInterval: interval,
+
+          prices: [{ ...selectedPrice }],
+
+          features:
+            interval === 'year'
+              ? planFeatures?.yearly ?? []
+              : planFeatures?.monthly ?? [],
+
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
+        };
+      })
+      .filter(Boolean);
+    return products;
+  }
+  async handleWebhook(req: Request) {
+
+    const rawBody: string = (req as any).rawBody || '';
+    const paddleSignature = req.headers['paddle-signature'] as string || '';
+    const secret = PADDLE_WEBHOOK_SECRET;
+
+    if (!secret) {
+      logger.error('[paddle-webhook] PADDLE_WEBHOOK_SECRET not configured');
+      return;
+    }
+
+    if (!verifyPaddleSignature(rawBody, paddleSignature, secret)) {
+      logger.warn('[paddle-webhook] Invalid signature');
+      return;
+    }
+
+    // Process the event asynchronously
+    const event = JSON.parse(rawBody);
+    processPaddleWebhook(event).then((result) => {
+      if (!result.handled) {
+        logger.info(`[paddle-webhook] Not handled: ${result.reason}`);
+      }
+    }).catch((err) => {
+      logger.error('[paddle-webhook] Processing error:', err);
+    });
+  }
   /**
    * List transactions (completed payments) from Paddle.
    * GET /transactions
@@ -78,7 +199,7 @@ export class PaddleService {
       if (query.status) params.status = query.status;
 
       const { data } = await this.api.get('/transactions', { params });
-      return data;
+      return data.data;
     } catch (error: any) {
       throw this.handlePaddleError(error, 'Failed to fetch transactions from Paddle');
     }

@@ -12,7 +12,7 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR),
+  // rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR),
   asyncWrapper(meetingsController.findAll.bind(meetingsController))
 );
 
@@ -20,6 +20,5 @@ router.get('/:id', asyncWrapper(meetingsController.findById.bind(meetingsControl
 router.post('/', asyncWrapper(meetingsController.create.bind(meetingsController)));
 router.put('/:id', asyncWrapper(meetingsController.update.bind(meetingsController)));
 router.patch('/:id/status', asyncWrapper(meetingsController.updateStatus.bind(meetingsController)));
-router.delete('/:id', asyncWrapper(meetingsController.delete.bind(meetingsController)));
 
 export default router;

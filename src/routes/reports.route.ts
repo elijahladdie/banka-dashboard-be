@@ -18,6 +18,5 @@ router.get(
 router.get('/:id', asyncWrapper(reportsController.findById.bind(reportsController)));
 router.post('/', asyncWrapper(reportsController.create.bind(reportsController)));
 router.put('/:id', asyncWrapper(reportsController.update.bind(reportsController)));
-router.delete('/:id', asyncWrapper(reportsController.delete.bind(reportsController)));
 
 export default router;

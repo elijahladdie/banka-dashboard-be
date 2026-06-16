@@ -25,7 +25,6 @@ export class UsersRepository implements IUsersRepository {
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
-    console.log(`Updating user with ID: ${id} and data:`, data);
     return prisma.user.update({ where: { id }, data });
   }
 

@@ -56,7 +56,7 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     assignments
       .map((a) => a.subscriber as SubscriptionWithUser | null)
       .filter(Boolean) as SubscriptionWithUser[];
-      console.log('findByAdvisor', advisorId, resp);
+
     return resp;
   }
 

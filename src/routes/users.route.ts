@@ -24,10 +24,4 @@ router.put(
   asyncWrapper(usersController.update.bind(usersController))
 );
 
-router.delete(
-  '/:id',
-  rolesGuard(ROLES.PLATFORM_ADMIN),
-  asyncWrapper(usersController.delete.bind(usersController))
-);
-
 export default router;

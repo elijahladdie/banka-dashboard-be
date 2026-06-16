@@ -11,5 +11,4 @@ export interface INotificationsRepository {
   create(data: Partial<Notification>): Promise<Notification>;
   markAsRead(id: string): Promise<Notification>;
   markAllAsRead(userId: string): Promise<void>;
-  delete(id: string): Promise<Notification>;
 }

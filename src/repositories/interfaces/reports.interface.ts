@@ -1,20 +1,14 @@
-import { FinancialReport } from '@prisma/client';
+import { FinancialReport, Prisma } from '@prisma/client';
 
 export interface IReportsRepository {
-  findById(id: string): Promise<FinancialReport | null>;
-  findBySubscriber(subscriberId: string, params: {
-    skip?: number;
-    take?: number;
-    orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
-  }): Promise<FinancialReport[]>;
+  findOne(where: Prisma.FinancialReportWhereInput): Promise<FinancialReport | null>;
   findAll(params: {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
   }): Promise<[FinancialReport[], number]>;
-  create(data: Partial<FinancialReport>): Promise<FinancialReport>;
-  update(id: string, data: Partial<FinancialReport>): Promise<FinancialReport>;
-  delete(id: string): Promise<FinancialReport>;
+  create(data: Prisma.FinancialReportCreateInput): Promise<FinancialReport>;
+  update(id: string, data: Prisma.FinancialReportUpdateInput): Promise<FinancialReport>;
+  
 }

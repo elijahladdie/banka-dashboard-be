@@ -1,10 +1,11 @@
 import { PrismaClient} from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import logger from '../utils/logger';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
+  logger.info('Seeding database...');
 
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash('Admin@123', salt);
@@ -216,7 +217,7 @@ async function main() {
       data: { ...feature, billingInterval: 'MONTHLY' as const },
     });
   }
-  console.log(`  ✓ ${planFeatures.length} MONTHLY plan features seeded`);
+  logger.info(`  ✓ ${planFeatures.length} MONTHLY plan features seeded`);
 
   // Duplicate features for YEARLY billing interval
   for (const feature of planFeatures) {
@@ -224,20 +225,20 @@ async function main() {
       data: { ...feature, billingInterval: 'YEARLY' as const },
     });
   }
-  console.log(`  ✓ ${planFeatures.length} YEARLY plan features seeded`);
+  logger.info(`  ✓ ${planFeatures.length} YEARLY plan features seeded`);
 
-  console.log('Database seeded successfully!');
-  console.log('Default credentials:');
-  console.log('  All accounts: password = "Admin@123"');
-  console.log('  Admin: admin@banka.rw');
-  console.log('  Finance: finance@banka.rw');
-  console.log('  Advisor: advisor@banka.rw');
-  console.log('  Subscriber: subscriber@banka.rw');
+  logger.info('Database seeded successfully!');
+  logger.info('Default credentials:');
+  logger.info('  All accounts: password = "Admin@123"');
+  logger.info('  Admin: admin@banka.rw');
+  logger.info('  Finance: finance@banka.rw');
+  logger.info('  Advisor: advisor@banka.rw');
+  logger.info('  Subscriber: subscriber@banka.rw');
 }
 
 main()
   .catch((e) => {
-    console.error('Seed error:', e);
+    logger.error('Seed error:', e);
     process.exit(1);
   })
   .finally(async () => {

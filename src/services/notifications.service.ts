@@ -43,11 +43,6 @@ export class NotificationsService {
     return this.notificationsRepository.markAllAsRead(userId);
   }
 
-  async delete(id: string): Promise<Notification> {
-    await this.findById(id);
-    return this.notificationsRepository.delete(id);
-  }
-
   async getUnreadCount(userId: string): Promise<number> {
     return this.notificationsRepository.findAll({
       where: { userId, readAt: null }

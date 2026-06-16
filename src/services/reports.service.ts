@@ -1,4 +1,4 @@
-import { FinancialReport } from '@prisma/client';
+import { FinancialReport, Prisma } from '@prisma/client';
 import { ReportsRepository } from '../repositories/implementations/reports.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { NotFoundError } from '../helpers';
@@ -28,12 +28,12 @@ export class ReportsService {
   }
 
   async findById(id: string): Promise<FinancialReport> {
-    const report = await this.reportsRepository.findById(id);
+    const report = await this.reportsRepository.findOne({ id });
     if (!report) throw new NotFoundError('Report');
     return report;
   }
 
-  async create(data: Partial<FinancialReport>, actorId: string): Promise<FinancialReport> {
+  async create(data: Prisma.FinancialReportCreateInput, actorId: string): Promise<FinancialReport> {
     const report = await this.reportsRepository.create(data);
 
     await this.auditLogsRepository.create({
@@ -47,7 +47,7 @@ export class ReportsService {
     return report;
   }
 
-  async update(id: string, data: Partial<FinancialReport>, actorId: string): Promise<FinancialReport> {
+  async update(id: string, data: Prisma.FinancialReportUpdateInput, actorId: string): Promise<FinancialReport> {
     await this.findById(id);
     const updated = await this.reportsRepository.update(id, data);
 
@@ -60,19 +60,5 @@ export class ReportsService {
     });
 
     return updated;
-  }
-
-  async delete(id: string, actorId: string): Promise<FinancialReport> {
-    await this.findById(id);
-    const deleted = await this.reportsRepository.delete(id);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'REPORT_DELETED',
-      entityType: 'FinancialReport',
-      entityId: id,
-    });
-
-    return deleted;
   }
 }

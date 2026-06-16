@@ -35,11 +35,4 @@ router.patch(
   rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
   asyncWrapper(advisorsController.toggleAvailability.bind(advisorsController))
 );
-
-router.delete(
-  '/:id',
-  rolesGuard(ROLES.PLATFORM_ADMIN),
-  asyncWrapper(advisorsController.delete.bind(advisorsController))
-);
-
 export default router;

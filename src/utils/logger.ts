@@ -27,13 +27,13 @@ const formatMessage = (level: LogLevel, message: string, meta?: any): string => 
 const logger = {
   error(message: string, meta?: any): void {
     if (getLogLevel() >= LOG_LEVELS.ERROR) {
-      console.error(formatMessage('ERROR', message, meta));
+      logger.error(formatMessage('ERROR', message, meta));
     }
   },
 
   warn(message: string, meta?: any): void {
     if (getLogLevel() >= LOG_LEVELS.WARN) {
-      console.warn(formatMessage('WARN', message, meta));
+      logger.warn(formatMessage('WARN', message, meta));
     }
   },
 

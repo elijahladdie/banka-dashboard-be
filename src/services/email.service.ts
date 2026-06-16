@@ -9,6 +9,7 @@
 import nodemailer from 'nodemailer';
 import { Address } from 'nodemailer/lib/mailer';
 import { NODE_ENV, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, DASHBOARD_URL } from '../utils/constants';
+import logger from '../utils/logger';
 
 interface SendEmailOptions {
   to: string;
@@ -38,10 +39,10 @@ function createTransporter(): nodemailer.Transporter {
 
   // Fallback: log to console in development
   if (NODE_ENV !== 'production') {
-    console.warn('[email] SMTP not configured — emails will be logged to console only.');
+    logger.warn('[email] SMTP not configured — emails will be logged to console only.');
     return {
       sendMail: async (opts: any) => {
-        console.log('[email] 📬 Would send email:', JSON.stringify(opts, null, 2));
+        logger.info('[email] 📬 Would send email:', JSON.stringify(opts, null, 2));
         return { messageId: `log-${Date.now()}` };
       },
     } as unknown as nodemailer.Transporter;
@@ -178,4 +179,25 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     text: options.text,
     html: options.html,
   });
+}
+export async function sendSubsUpgradeEmail({
+  email,
+  firstName,
+  previousPlan,
+  newPlan,
+  amount,
+  currency
+}: {
+  email: string;
+  firstName: string;
+  previousPlan: string;
+  newPlan: string;
+  amount: number;
+  currency: string;
+}): Promise<void> {
+  const subject = 'Your Banka Subscription Has Been Upgraded';
+  const text = `Hi ${firstName},\n\nYour subscription has been successfully upgraded from ${previousPlan} to the new plan. Thank you for choosing Banka!\n\n— Banka Team`;
+  const html = `<p>Hi ${firstName},</p><p>Your subscription has been successfully upgraded from <strong>${previousPlan}</strong> to the new plan. Thank you for choosing Banka!</p><p>— Banka Team</p>`;
+
+  await sendEmail({ to: email, subject, text, html });
 }

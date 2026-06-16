@@ -12,7 +12,7 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  rolesGuard(ROLES.FINANCIAL_ADVISOR, ROLES.PLATFORM_ADMIN),
+  // rolesGuard(ROLES.FINANCIAL_ADVISOR, ROLES.PLATFORM_ADMIN),
   asyncWrapper(notesController.findByAdvisor.bind(notesController))
 );
 
@@ -28,12 +28,6 @@ router.put(
   '/:id',
   rolesGuard(ROLES.FINANCIAL_ADVISOR),
   asyncWrapper(notesController.update.bind(notesController))
-);
-
-router.delete(
-  '/:id',
-  rolesGuard(ROLES.FINANCIAL_ADVISOR, ROLES.PLATFORM_ADMIN),
-  asyncWrapper(notesController.delete.bind(notesController))
 );
 
 export default router;

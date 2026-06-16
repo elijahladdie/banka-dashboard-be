@@ -34,9 +34,4 @@ export class NotificationsController {
     const count = await this.notificationsService.getUnreadCount(req.user!.userId);
     ResponseHandler.success(res, { unreadCount: count }, 'Unread count retrieved.');
   }
-
-  async delete(req: AuthenticatedRequest, res: Response) {
-    await this.notificationsService.delete(req.params.id);
-    ResponseHandler.success(res, null, 'Notification deleted successfully.');
-  }
 }

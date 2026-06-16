@@ -37,9 +37,4 @@ export class MeetingsController {
     );
     ResponseHandler.success(res, meeting, 'Meeting status updated successfully.');
   }
-
-  async delete(req: AuthenticatedRequest, res: Response) {
-    await this.meetingsService.delete(req.params.id, req.user!.userId);
-    ResponseHandler.success(res, null, 'Meeting deleted successfully.');
-  }
 }
