@@ -10,7 +10,7 @@ export class SubscriptionsController {
   }
 
   async findAll(req: AuthenticatedRequest, res: Response) {
-    if(req.user?.role === 'FINANCIAL_ADVISOR') {
+    if (req.user?.role === 'FINANCIAL_ADVISOR') {
       req.query.advisorId = req.user.userId;
     }
     const result = await this.subscriptionsService.findAll({ ...req.query, user: req?.user });
@@ -52,5 +52,12 @@ export class SubscriptionsController {
       req.user!.userId
     );
     ResponseHandler.success(res, subscription, 'Subscription canceled successfully.');
+  }
+
+  async updateFeatures(req: AuthenticatedRequest, res: Response) {
+    const { productid } = req.params;
+    const { features, plan } = req.body;
+    const result = await this.subscriptionsService.updatePlanFeatures({ productId: productid, features, plan, userId: String(req.user!.userId), billingInterval: req.body.billingInterval });
+    ResponseHandler.success(res, result, 'Plan features updated successfully.');
   }
 }

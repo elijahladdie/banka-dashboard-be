@@ -23,17 +23,7 @@ export class PaddleController {
       'Paddle products retrieved successfully.'
     );
   }
-  /**
-   * Handle incoming Paddle webhooks.
-   *
-   * Per Paddle best practices:
-   * 1. Respond with HTTP 200 IMMEDIATELY — before any processing.
-   * 2. Verify the signature using the raw body (captured via express.json verify callback).
-   * 3. Process the event asynchronously after responding.
-   *
-   * @see https://developer.paddle.com/webhooks/about/respond-to-webhooks
-   * @see https://developer.paddle.com/webhooks/about/signature-verification
-   */
+
   async handleWebhook(req: Request, res: Response) {
     // Acknowledge receipt immediately — Paddle requires 200 within 5 seconds
     res.status(200).json({ received: true });
@@ -53,5 +43,4 @@ export class PaddleController {
     });
     ResponseHandler.success(res, result, 'Transactions retrieved successfully.');
   }
-
 }

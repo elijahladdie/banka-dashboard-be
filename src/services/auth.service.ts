@@ -22,10 +22,9 @@ import {
 } from '../helpers';
 import { TOKEN } from '../constants';
 import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET } from '../utils/constants';
-import { sendRegistrationEmail, sendSubsUpgradeEmail } from './email.service';
 import { ReportsRepository } from '../repositories/implementations/reports.repository';
 import { mergeSummary } from '../utils/paddle-mapper';
-import logger from '../utils/logger';
+import { SubscriptionStatus } from '@prisma/client';
 
 export class AuthService {
   private readonly authRepository: AuthRepository;
@@ -167,6 +166,7 @@ export class AuthService {
   async updateSubscriptionFromPaddle(
     input: PaddleSubscriptionUpdateInput
   ): Promise<any | null> {
+
     const subscription = await this.subscriptionsRepository.findOne({
       customerId: input.customerId,
     });
@@ -175,48 +175,50 @@ export class AuthService {
 
     const paddleEvent = input.paddleEvent;
 
-    const lineItem =
-      paddleEvent?.data?.details?.line_items?.[0] ??
-      paddleEvent?.details?.line_items?.[0];
-    const product =
-      lineItem?.product?.name ??
-      lineItem?.price?.name ??
-      'ADVANCED';
-
-    const amount = Number(
-      paddleEvent?.data?.details?.totals?.grand_total ??
-      paddleEvent?.details?.totals?.grand_total ??
-      0
-    );
-
-    const currency =
-      paddleEvent?.data?.currency_code ??
-      paddleEvent?.currency_code ??
-      'USD';
+    const normalized =
+      this.normalizePaddleSubscription(paddleEvent);
 
     const previousPlan = subscription.plan;
 
     const isUpgrade =
       previousPlan &&
-      previousPlan !== product;
+      previousPlan !== normalized.product;
 
+    const eventType =
+      this.resolveSubscriptionEvent(paddleEvent?.event_type);
+
+    /**
+     * 🧠 CRITICAL FIX:
+     * These fields MUST ALWAYS be stored consistently
+     */
     await this.subscriptionsRepository.update(subscription.id, {
       subscriptionId:
         input.subscriptionId || subscription.subscriptionId,
 
-      plan: product?.toUpperCase(),
+      plan: normalized.product,
 
-      status: 'ACTIVE',
+      status: normalized.status,
+
+      startsAt: normalized.startsAt,
+      endsAt: normalized.endsAt,
+      canceledAt: normalized.canceledAt,
+      trialStart: normalized.trialStart,
+      trialEnd: normalized.trialEnd,
+
+      metadata: {
+        currency: normalized.currency,
+        amount: normalized.amount,
+        billingCycle: normalized.billingCycle,
+        collectionMode: normalized.collectionMode,
+        paddleEventType: paddleEvent?.event_type,
+        product: normalized.product,
+      },
     });
 
-    const user = await this.authRepository.findById(
-      subscription.userId
-    );
-
+    const user = await this.authRepository.findById(subscription.userId);
     if (!user) return null;
 
     const now = new Date();
-
     const month = now.getMonth() + 1;
     const day = now.getDate();
 
@@ -226,143 +228,117 @@ export class AuthService {
       (month === 9 && day === 30) ||
       (month === 12 && day === 31);
 
-    const isYearEnd =
-      month === 12 && day === 31;
+    const isYearEnd = month === 12 && day === 31;
+
+    /**
+     * 📊 REPORTING LOGIC (unchanged but now accurate data)
+     */
     if (isQuarterEnd) {
       const quarter = Math.ceil(month / 3);
-      const quarterTitle = `Q${quarter} Financial Summary ${now.getFullYear()}`;
 
-      const existingQuarterly = await this.reportsRepository.findOne({
+      const title = `Q${quarter} Financial Summary ${now.getFullYear()}`;
+
+      const existing = await this.reportsRepository.findOne({
         subscriber: { id: user.id },
         reportType: 'QUARTERLY',
-        title: quarterTitle,
+        title,
       });
 
-      const quarterlySummaryParts = [
-        `Quarterly account review for Q${quarter}.`,
-        `Current subscription: ${product}.`,
-        `Latest payment: ${amount} ${currency}.`,
+      const summary = [
+        `Quarterly review Q${quarter}.`,
+        `Plan: ${normalized.product}.`,
+        `Amount: ${normalized.amount} ${normalized.currency}.`,
+        normalized.status ? `Status: ${normalized.status}.` : '',
         isUpgrade
-          ? `Subscription upgraded from ${previousPlan} to ${product}.`
+          ? `Upgraded from ${previousPlan} to ${normalized.product}.`
           : '',
-      ];
+      ].filter(Boolean).join(' ');
 
-      if (existingQuarterly) {
-        await this.reportsRepository.update(existingQuarterly.id, {
-          summary: mergeSummary(existingQuarterly.summary, quarterlySummaryParts),
+      if (existing) {
+        await this.reportsRepository.update(existing.id, {
+          summary: mergeSummary(existing.summary, [summary]),
         });
       } else {
         await this.reportsRepository.create({
-          subscriber: {
-            connect: { id: user.id },
-          },
+          subscriber: { connect: { id: user.id } },
           reportType: 'QUARTERLY',
-          title: quarterTitle,
-          summary: quarterlySummaryParts.filter(Boolean).join(' '),
+          title,
+          summary,
         });
       }
     }
-    if (isYearEnd) {
-      const annualTitle = `Annual Financial Report ${now.getFullYear()}`;
 
-      const existingAnnual = await this.reportsRepository.findOne({
+    if (isYearEnd) {
+      const title = `Annual Financial Report ${now.getFullYear()}`;
+
+      const existing = await this.reportsRepository.findOne({
         subscriber: { id: user.id },
         reportType: 'ANNUAL',
-        title: annualTitle,
+        title,
       });
 
-      const annualSummaryParts = [
-        `Annual subscription review.`,
-        `Current active plan: ${product}.`,
-        `Latest payment amount: ${amount} ${currency}.`,
-        isUpgrade
-          ? `Subscription upgraded during the year.`
-          : '',
-      ];
+      const summary = [
+        `Annual subscription summary.`,
+        `Plan: ${normalized.product}.`,
+        `Amount: ${normalized.amount} ${normalized.currency}.`,
+        normalized.status ? `Status: ${normalized.status}.` : '',
+        isUpgrade ? `Upgraded during year.` : '',
+      ].filter(Boolean).join(' ');
 
-      if (existingAnnual) {
-        await this.reportsRepository.update(existingAnnual.id, {
-          summary: mergeSummary(existingAnnual.summary, annualSummaryParts),
+      if (existing) {
+        await this.reportsRepository.update(existing.id, {
+          summary: mergeSummary(existing.summary, [summary]),
         });
       } else {
         await this.reportsRepository.create({
-          subscriber: {
-            connect: { id: user.id },
-          },
+          subscriber: { connect: { id: user.id } },
           reportType: 'ANNUAL',
-          title: annualTitle,
-          summary: annualSummaryParts.filter(Boolean).join(' '),
+          title,
+          summary,
         });
       }
     }
+
+    /**
+     * 📌 ALWAYS CREATE MONTHLY EVENT LOG
+     */
     await this.reportsRepository.create({
-      subscriber: {
-        connect: { id: user.id },
-      },
+      subscriber: { connect: { id: user.id } },
       reportType: 'MONTHLY',
       title: isUpgrade
-        ? `Subscription Upgrade - ${product}`
-        : `Subscription Payment - ${product}`,
+        ? `Subscription Upgrade - ${normalized.product}`
+        : `Subscription Payment - ${normalized.product}`,
+
       summary: isUpgrade
-        ? `Customer upgraded from ${previousPlan} to ${product}. Payment received: ${amount} ${currency}.`
-        : `Payment received for ${product}. Amount: ${amount} ${currency}.`,
+        ? `Upgraded from ${previousPlan} to ${normalized.product}. Paid ${normalized.amount} ${normalized.currency}.`
+        : `Payment received for ${normalized.product}. Amount: ${normalized.amount} ${normalized.currency}.`,
     });
-    // check if the time is in quarter period and if so, create a quarterly report as well or if it;s in the end of the year create report for this year
+
+    /**
+     * 📌 AUDIT LOG (now lifecycle-aware)
+     */
     await this.auditLogsRepository.create({
       userId: user.id,
-      action: isUpgrade
-        ? 'SUBSCRIPTION_UPGRADED'
-        : 'SUBSCRIPTION_PAYMENT_RECEIVED',
+      action: eventType,
 
       entityType: 'Subscription',
       entityId: subscription.id,
 
       newValues: {
-        plan: product?.toUpperCase(),
-        amount,
-        currency,
+        plan: normalized.product,
+        amount: normalized.amount,
+        currency: normalized.currency,
+        status: normalized.status,
+        startsAt: normalized.startsAt?.toISOString() ?? null,
+        endsAt: normalized.endsAt?.toISOString() ?? null,
+        canceledAt: normalized.canceledAt?.toISOString() ?? null,
+        trialStart: normalized.trialStart?.toISOString() ?? null,
+        trialEnd: normalized.trialEnd?.toISOString() ?? null,
         subscriptionId: input.subscriptionId,
-      },
+      }
     });
 
-    // Upgrade email
-    if (isUpgrade) {
-      sendSubsUpgradeEmail({
-        email: user.email,
-        firstName: user.firstName,
-        previousPlan,
-        newPlan: product?.toUpperCase(),
-        amount,
-        currency,
-      }).catch((error: any) => {
-        logger.error(
-          '[auth-service] Failed to send upgrade email',
-          error
-        );
-      });
-    }
-
-    // Registration email
-    if (!user.registrationCompleted) {
-      const displayName =
-        user.firstName ||
-        user.email.split('@')[0];
-
-      sendRegistrationEmail(
-        user.email,
-        displayName
-      ).catch((error) => {
-        logger.error(
-          '[auth-service] Failed to send registration email',
-          error
-        );
-      });
-    }
-
-    const { passwordHash: _, ...userWithoutPassword } =
-      user;
-
-    return userWithoutPassword;
+    return user;
   }
   async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; tokens: AuthTokens }> {
     const user = await this.authRepository.findByEmail(input.email);
@@ -433,8 +409,6 @@ export class AuthService {
     await this.authRepository.updateUser(user.id, {
       // In production, store reset token hash in a separate table
     });
-
-    // In production, send email with reset link
     return { resetToken };
   }
 
@@ -470,5 +444,130 @@ export class AuthService {
 
     const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
     return { accessToken };
+  }
+  private normalizePaddleSubscription(paddleEvent: any) {
+    const data = paddleEvent?.data ?? {};
+    const details = data?.details ?? data;
+
+    const lineItem =
+      details?.line_items?.[0] ??
+      data?.items?.[0];
+
+    const product =
+      lineItem?.product?.name ??
+      lineItem?.price?.name ??
+      'ADVANCED';
+
+    const billingPeriod =
+      data?.billing_period ?? details?.current_billing_period ?? {};
+
+    const startsAt =
+      billingPeriod?.starts_at ??
+      details?.started_at ??
+      null;
+
+    const endsAt =
+      billingPeriod?.ends_at ??
+      data?.next_billed_at ??
+      null;
+
+    const canceledAt =
+      details?.canceled_at ??
+      data?.canceled_at ??
+      null;
+
+    const trialStart =
+      details?.trial_started_at ??
+      (details?.status === 'trialing' ? startsAt : null);
+
+    const trialEnd =
+      details?.trial_ends_at ??
+      null;
+
+    const currency =
+      details?.totals?.currency_code ??
+      data?.currency_code ??
+      'USD';
+
+    const amount =
+      Number(details?.totals?.grand_total ?? 0);
+
+    const status = mapPaddleStatus(
+      details?.status ?? data?.status ?? paddleEvent?.event_type
+    );
+
+    return {
+      product: product?.toUpperCase(),
+      currency,
+      amount,
+      status,
+      startsAt: startsAt ? new Date(startsAt) : null,
+      endsAt: endsAt ? new Date(endsAt) : null,
+      canceledAt: canceledAt ? new Date(canceledAt) : null,
+      trialStart: trialStart ? new Date(trialStart) : null,
+      trialEnd: trialEnd ? new Date(trialEnd) : null,
+      billingCycle: lineItem?.price?.billing_cycle ?? null,
+      collectionMode: data?.collection_mode ?? null,
+    };
+  }
+  private resolveSubscriptionEvent(eventType: string) {
+    switch (eventType) {
+      case 'transaction.completed':
+        return 'PAYMENT_RECEIVED';
+
+      case 'subscription.created':
+        return 'SUBSCRIPTION_CREATED';
+
+      case 'subscription.updated':
+        return 'SUBSCRIPTION_UPDATED';
+
+      case 'subscription.canceled':
+        return 'SUBSCRIPTION_CANCELED';
+
+      case 'subscription.paused':
+        return 'SUBSCRIPTION_PAUSED';
+
+      case 'subscription.resumed':
+        return 'SUBSCRIPTION_RESUMED';
+
+      case 'subscription.trialing':
+        return 'SUBSCRIPTION_TRIAL';
+
+      default:
+        return 'SUBSCRIPTION_UPDATED';
+    }
+  }
+
+}
+
+function mapPaddleStatus(status?: string): SubscriptionStatus {
+  const s = (status ?? "").toLowerCase();
+
+  switch (s) {
+    case "active":
+    case "completed":
+    case "paid":
+    case "succeeded":
+      return "ACTIVE";
+
+    case "past_due":
+    case "payment_failed":
+    case "unpaid":
+      return "PAST_DUE";
+
+    case "trialing":
+    case "trial":
+      return "TRIALING";
+
+    case "canceled":
+    case "cancelled":
+      return "CANCELED";
+
+    case "expired":
+    case "ended":
+      return "EXPIRED";
+
+    default:
+      return "ACTIVE"; // safe fallback
   }
 }

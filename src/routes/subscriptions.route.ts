@@ -21,5 +21,6 @@ router.get('/:id', asyncWrapper(subscriptionsController.findById.bind(subscripti
 router.post('/', asyncWrapper(subscriptionsController.create.bind(subscriptionsController)));
 router.put('/:id', asyncWrapper(subscriptionsController.update.bind(subscriptionsController)));
 router.post('/:id/cancel', asyncWrapper(subscriptionsController.cancel.bind(subscriptionsController)));
+router.put('/:productid/features', asyncWrapper(subscriptionsController.updateFeatures.bind(subscriptionsController)));
 
 export default router;

@@ -41,3 +41,8 @@ export const DASHBOARD_URL = env.DASHBOARD_URL;
 export const PADDLE_ENV = env.PADDLE_ENV;
 export const PADDLE_API_KEY = env.PADDLE_API_KEY;
 export const DATABASE_URL = env.DATABASE_URL;
+export const PLAN_NAME_MAP: Record<string, string> = {
+  starter: 'STARTER',
+  pro: 'PRO',
+  advanced: 'ADVANCED',
+};

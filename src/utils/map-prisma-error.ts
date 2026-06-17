@@ -58,6 +58,7 @@ export function mapPrismaError(err: unknown): CleanApiError | null {
   }
 
   if (err instanceof Prisma.PrismaClientValidationError) {
+    logger.warn(`Prisma validation error: ${err.message}`, err);
     return {
       status: 400,
       code: 176,

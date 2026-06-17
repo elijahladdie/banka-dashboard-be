@@ -227,3 +227,23 @@ export const INCLUDE_USER = {
     },
   },
 };
+export const INCLUDE_USER_ADVISOR = {
+  ...INCLUDE_USER,
+  subscriberAssignment: {
+    include: {
+      advisor: {
+        select: {
+          id: true,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          }
+        },
+      }
+    }
+  },
+}

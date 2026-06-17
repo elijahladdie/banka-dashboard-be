@@ -2,7 +2,7 @@ import { Subscription } from '@prisma/client';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, UpdatePlanFeaturesInput } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class SubscriptionsService {
@@ -27,7 +27,7 @@ export class SubscriptionsService {
   }
 
   async findById(id: string): Promise<Subscription> {
-    const subscription = await this.subscriptionsRepository.findOne({id});
+    const subscription = await this.subscriptionsRepository.findOne({ id });
     if (!subscription) throw new NotFoundError('Subscription');
     return subscription;
   }
@@ -84,5 +84,9 @@ export class SubscriptionsService {
     });
 
     return updated;
+  }
+  async updatePlanFeatures(data: UpdatePlanFeaturesInput): Promise<void> {
+    const result = await this.subscriptionsRepository.updatePlanFeatures(data);
+    return result;
   }
 }

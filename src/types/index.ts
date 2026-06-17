@@ -1,4 +1,4 @@
-import { UserRole, UserStatus } from '@prisma/client';
+import { SubscriptionPlan, UserRole, UserStatus } from '@prisma/client';
 import { Request } from 'express';
 
 export interface JwtPayload {
@@ -164,4 +164,24 @@ export interface AnalyticsOverview {
       count: number;
     }[];
   };
+}
+
+export interface PaddleProductQuery {
+  id?: string[];
+  after?: string;
+  per_page?: number;
+  include?: string[];
+  order_by?: string;
+  status?: string[];
+  tax_category?: string[];
+  interval?: 'month' | 'year';
+  type?: 'custom' | 'standard';
+}
+
+export interface UpdatePlanFeaturesInput {
+  productId: string;
+  features: string[];
+  userId: string;
+  plan: SubscriptionPlan;
+  billingInterval: 'MONTHLY' | 'YEARLY';
 }

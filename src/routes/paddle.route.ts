@@ -15,8 +15,8 @@ router.post('/webhooks', asyncWrapper(paddleController.handleWebhook.bind(paddle
 // router.use(rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR));
 
 router.get('/products', asyncWrapper(paddleController.getProducts.bind(paddleController)));
+
 router.use(jwtAuthGuard);
 router.use(rolesGuard(ROLES.PLATFORM_ADMIN));
 router.get('/transactions', asyncWrapper(paddleController.getTransactions.bind(paddleController)));
-
 export default router;

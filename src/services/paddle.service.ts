@@ -1,29 +1,14 @@
 import { Request } from 'express';
 import axios, { AxiosInstance } from 'axios';
 import { ForbiddenError, ServerError, UnauthorizedError } from '../helpers';
-import { PADDLE_ENV, PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET } from '../utils/constants';
+import { PADDLE_ENV, PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET, PLAN_NAME_MAP } from '../utils/constants';
 import prisma from '../utils/prisma';
 import { mapPaddleProductsResponse } from '../utils/paddle-mapper';
 import { processPaddleWebhook, verifyPaddleSignature } from '../utils/paddle-webhook';
 import logger from '../utils/logger';
+import { PaddleProductQuery } from '../types';
 
-interface PaddleProductQuery {
-  id?: string[];
-  after?: string;
-  per_page?: number;
-  include?: string[];
-  order_by?: string;
-  status?: string[];
-  tax_category?: string[];
-  interval?: 'month' | 'year';
-  type?: 'custom' | 'standard';
-}
 
-const PLAN_NAME_MAP: Record<string, string> = {
-  starter: 'STARTER',
-  pro: 'PRO',
-  advanced: 'ADVANCED',
-};
 export class PaddleService {
   private readonly api: AxiosInstance;
 
@@ -43,11 +28,6 @@ export class PaddleService {
     });
   }
 
-  /**
-   * List products from Paddle.
-   * GET /products
-   * Requires `product.read` permission.
-   */
   async listProducts(query: PaddleProductQuery = {}) {
     try {
       const params: Record<string, any> = {};
@@ -68,10 +48,6 @@ export class PaddleService {
     }
   }
 
-  /**
-   * List products with their associated prices in a single call.
-   * GET /products?include=prices
-   */
   async listProductsWithPrices(query: PaddleProductQuery = {}) {
     const { interval = 'year' } = query;
     const [result, dbFeatures] = await Promise.all([
@@ -186,11 +162,7 @@ export class PaddleService {
       logger.error('[paddle-webhook] Processing error:', err);
     });
   }
-  /**
-   * List transactions (completed payments) from Paddle.
-   * GET /transactions
-   * Requires `transaction.read` permission.
-   */
+
   async listTransactions(query: { after?: string; per_page?: number; status?: string } = {}) {
     try {
       const params: Record<string, any> = {};
@@ -205,9 +177,7 @@ export class PaddleService {
     }
   }
 
-  /**
-   * Normalize Paddle API errors into application-friendly errors.
-   */
+
   private handlePaddleError(error: any, fallbackMessage: string): never {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;

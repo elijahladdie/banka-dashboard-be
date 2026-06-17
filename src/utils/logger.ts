@@ -1,52 +1,50 @@
-import { NODE_ENV } from './constants';
+import winston from "winston";
+import { NODE_ENV } from "./constants";
 
-const LOG_LEVELS = {
-  ERROR: 0,
-  WARN: 1,
-  INFO: 2,
-  DEBUG: 3,
-} as const;
+const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 
-type LogLevel = keyof typeof LOG_LEVELS;
+// Custom log format for dev
+const devFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
+  const metaString = Object.keys(meta).length
+    ? `\nMETA: ${JSON.stringify(meta, null, 2)}`
+    : "";
 
-const getLogLevel = (): number => {
-  if (NODE_ENV === 'production') return LOG_LEVELS.INFO;
-  return LOG_LEVELS.DEBUG;
-};
+  return `[${timestamp}] [${level}] ${stack || message}${metaString}`;
+});
 
-const formatTimestamp = (): string => {
-  return new Date().toISOString();
-};
+// Base logger config
+const logger = winston.createLogger({
+  level: NODE_ENV === "production" ? "info" : "debug",
+  format: combine(
+    errors({ stack: true }),
+    timestamp(),
+    NODE_ENV === "production" ? json() : devFormat
+  ),
+  transports: [
+    new winston.transports.Console({
+      format: combine(
+        colorize({ all: true }),
+        timestamp(),
+        devFormat
+      ),
+    }),
+  ],
+});
 
-const formatMessage = (level: LogLevel, message: string, meta?: any): string => {
-  const timestamp = formatTimestamp();
-  const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-  return `[${timestamp}] [${level}] ${message}${metaStr}`;
-};
+// Optional: file logging in production
+if (NODE_ENV === "production") {
+  logger.add(
+    new winston.transports.File({
+      filename: "logs/error.log",
+      level: "error",
+    })
+  );
 
-const logger = {
-  error(message: string, meta?: any): void {
-    if (getLogLevel() >= LOG_LEVELS.ERROR) {
-      logger.error(formatMessage('ERROR', message, meta));
-    }
-  },
+  logger.add(
+    new winston.transports.File({
+      filename: "logs/combined.log",
+    })
+  );
+}
 
-  warn(message: string, meta?: any): void {
-    if (getLogLevel() >= LOG_LEVELS.WARN) {
-      logger.warn(formatMessage('WARN', message, meta));
-    }
-  },
-
-  info(message: string, meta?: any): void {
-    if (getLogLevel() >= LOG_LEVELS.INFO) {
-      console.info(formatMessage('INFO', message, meta));
-    }
-  },
-
-  debug(message: string, meta?: any): void {
-    if (getLogLevel() >= LOG_LEVELS.DEBUG) {
-      console.debug(formatMessage('DEBUG', message, meta));
-    }
-  },
-};
 export default logger;
