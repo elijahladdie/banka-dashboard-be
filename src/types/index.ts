@@ -1,6 +1,7 @@
+import { UserRole, UserStatus } from '@prisma/client';
 import { Request } from 'express';
 
-export interface JwtPayload {
+interface JwtPayload {
   userId: string;
   email: string;
   role: string;
@@ -37,11 +38,6 @@ export interface ApiResponse<T = any> {
   stack?: string;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
 export interface SignUpInput {
   email: string;
   password: string;
@@ -61,6 +57,7 @@ export interface PaddleSignUpInput {
 export interface PaddleSubscriptionUpdateInput {
   customerId: string;
   subscriptionId: string;
+  paddleEvent: Record<string, any>;
 }
 
 export interface CompleteRegistrationInput {
@@ -90,17 +87,84 @@ export interface ResetPasswordInput {
   password: string;
 }
 
-export interface RefreshTokenInput {
-  refreshToken: string;
+export interface TUserSelect {
+  id: string,
+  firstName: string,
+  lastName: string,
+  email: string,
+  phoneNumber: string,
+  status: UserStatus,
+  role: UserRole,
 }
 
-export interface AuditLogInput {
-  userId: string;
-  action: string;
-  entityType: string;
-  entityId?: string;
-  oldValues?: Record<string, any>;
-  newValues?: Record<string, any>;
-  ipAddress?: string;
-  userAgent?: string;
+export interface AnalyticsOverview {
+  users: {
+    total: number;
+    subscribers: number;
+    advisors: number;
+    admins: number;
+    newSubscribersLast30Days: number;
+  };
+
+  subscriptions: {
+    active: number;
+    inactive: number;
+    cancelled: number;
+
+    monthlyPlans: number;
+    yearlyPlans: number;
+
+    monthlyPercentage: number;
+    yearlyPercentage: number;
+  };
+
+  goals: {
+    total: number;
+    active: number;
+    completed: number;
+    cancelled: number;
+
+    completionRate: number;
+  };
+
+  advisorCapacity: {
+    totalCapacity: number;
+    utilizedCapacity: number;
+    availableCapacity: number;
+    utilizationRate: number;
+  };
+
+  trends: {
+    subscribers: {
+      month: string;
+      count: number;
+    }[];
+
+    subscriptions: {
+      month: string;
+      count: number;
+    }[];
+
+    goals: {
+      month: string;
+      count: number;
+    }[];
+  };
+}
+
+export interface PaddleProductQuery {
+  id?: string[];
+  after?: string;
+  per_page?: number;
+  include?: string[];
+  order_by?: string;
+  status?: string[];
+  tax_category?: string[];
+  interval?: 'month' | 'year';
+  type?: 'custom' | 'standard';
+}
+
+export interface WebhookResult {
+  handled: boolean;
+  reason?: string;
 }

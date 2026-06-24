@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class AdvisorsController {
-  constructor(private readonly advisorsService: AdvisorsService) {}
+  private readonly advisorsService: AdvisorsService;
+  constructor() {
+    this.advisorsService = new AdvisorsService();
+  }
 
   async findAll(req: Request, res: Response) {
     const result = await this.advisorsService.findAll(req.query);

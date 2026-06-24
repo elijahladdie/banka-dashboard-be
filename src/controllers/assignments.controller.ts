@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class AssignmentsController {
-  constructor(private readonly assignmentsService: AssignmentsService) {}
+  private readonly assignmentsService: AssignmentsService;
+  constructor() {
+    this.assignmentsService = new AssignmentsService();
+  }
 
   async findAll(req: Request, res: Response) {
     const result = await this.assignmentsService.findAll(req.query);

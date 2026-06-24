@@ -2,17 +2,15 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthRepository } from '../repositories/implementations/auth.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import {
-  AuthTokens,
-  JwtPayload,
   SignUpInput,
   SignInInput,
   PaddleSignUpInput,
   PaddleSubscriptionUpdateInput,
   CompleteRegistrationInput,
   PendingRegistrationResult,
+  AuthenticatedRequest,
 } from '../types';
 import {
   ConflictError,
@@ -21,23 +19,25 @@ import {
   ValidationError,
 } from '../helpers';
 import { TOKEN } from '../constants';
+import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET, PLAN_NAME_MAP, SUBSCRIPTION_RANK } from '../utils/constants';
+import { sendRegistrationEmail, sendSubsPlanChangeEmail } from './email.service';
+import { generateTokens, normalizePaddleSubscription } from '../utils/helper';
 
 export class AuthService {
-  constructor(
-    private readonly authRepository: AuthRepository,
-    private readonly auditLogsRepository: AuditLogsRepository,
-    private readonly subscriptionsRepository: SubscriptionsRepository,
-  ) {}
+  private readonly authRepository: AuthRepository;
+  private readonly subscriptionsRepository: SubscriptionsRepository;
+  constructor() {
+    this.authRepository = new AuthRepository();
+    this.subscriptionsRepository = new SubscriptionsRepository();
+  }
 
-  async signUp(input: SignUpInput): Promise<{ user: any; tokens: AuthTokens }> {
+  async signUp(input: SignUpInput): Promise<{ user: any; token: string }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
     if (existingUser) {
       throw new ConflictError('A user with this email already exists.');
     }
 
-    const salt = await bcrypt.genSalt(
-      parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)
-    );
+    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(input.password, salt);
 
     const user = await this.authRepository.createUser({
@@ -48,20 +48,12 @@ export class AuthService {
       phoneNumber: input.phoneNumber,
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
-    await this.auditLogsRepository.create({
-      userId: user.id,
-      action: 'USER_SIGNED_UP',
-      entityType: 'User',
-      entityId: user.id,
-    });
-
+    const token = await generateTokens({ userId: user.id, email: user.email, role: user.role });
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, tokens };
+    return { user: userWithoutPassword, token: token };
   }
 
-  async signIn(input: SignInInput): Promise<{ user: any; tokens: AuthTokens }> {
+  async signIn(input: SignInInput): Promise<{ user: any; token: string }> {
     const user = await this.authRepository.findByEmail(input.email.toLowerCase());
     if (!user) {
       throw new UnauthorizedError('Invalid email or password.');
@@ -92,48 +84,15 @@ export class AuthService {
       lastLoginAt: new Date(),
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
-    await this.auditLogsRepository.create({
-      userId: user.id,
-      action: 'USER_SIGNED_IN',
-      entityType: 'User',
-      entityId: user.id,
-    });
-
+    const token = generateTokens({ userId: user.id, email: user.email, role: user.role });
     const { passwordHash: _, ...userWithoutPassword } = updatedUser;
-    return { user: userWithoutPassword, tokens };
+    return { user: userWithoutPassword, token };
   }
-
-  async refreshToken(refreshTokenStr: string): Promise<AuthTokens> {
-    const storedToken = await this.authRepository.findRefreshToken(refreshTokenStr);
-    if (!storedToken || storedToken.revokedAt) {
-      throw new UnauthorizedError('Invalid or revoked refresh token.');
-    }
-
-    if (new Date() > storedToken.expiresAt) {
-      throw new UnauthorizedError('Refresh token has expired.');
-    }
-
-    const user = await this.authRepository.findById(storedToken.userId);
-    if (!user || user.deletedAt) {
-      throw new UnauthorizedError('User not found.');
-    }
-
-    // Revoke old token
-    await this.authRepository.revokeRefreshToken(storedToken.id);
-
-    // Generate new tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
-    return tokens;
-  }
-
   async signUpFromPaddle(input: PaddleSignUpInput): Promise<{ user: any }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
     if (existingUser) {
       // User already exists — create subscription if missing, or update customerId
-      const existingSub = await this.subscriptionsRepository.findByUserId(existingUser.id);
+      const existingSub = await this.subscriptionsRepository.findOne({ userId: existingUser.id });
       if (existingSub) {
         await this.subscriptionsRepository.update(existingSub.id, {
           customerId: input.customerId || existingSub.customerId,
@@ -168,44 +127,101 @@ export class AuthService {
       customerId: input.customerId || '',
       subscriptionId: input.subscriptionId || '',
     });
-
-    await this.auditLogsRepository.create({
-      userId: user.id,
-      action: 'USER_CREATED_FROM_PADDLE',
-      entityType: 'User',
-      entityId: user.id,
-      newValues: { source: 'paddle', email: input.email },
-    });
-
+    const token = generateTokens({ userId: user.id, email: user.email, role: user.role });
+    // Send welcome / registration email
+    await sendRegistrationEmail({ token, fullName: user.firstName, email: user.email, });
     const { passwordHash: _, ...userWithoutPassword } = user;
     return { user: userWithoutPassword };
   }
 
-  /**
-   * Update a user's subscription info from a Paddle transaction/subscription event.
-   * Finds the subscription by customerId (stored in the Subscription model) and updates
-   * the subscriptionId. Returns the user through the subscription relation, or null
-   * if no subscription with that customerId exists.
-   */
-  async updateSubscriptionFromPaddle(input: PaddleSubscriptionUpdateInput): Promise<any | null> {
-    // Find subscription by Paddle customerId
-    const subscription = await this.subscriptionsRepository.findByCustomerId(input.customerId);
-    if (!subscription) return null;
+  async updateSubscriptionFromPaddle(
+    input: PaddleSubscriptionUpdateInput
+  ): Promise<any | null> {
 
-    // Update the subscription's paddle subscriptionId
-    await this.subscriptionsRepository.update(subscription.id, {
-      subscriptionId: input.subscriptionId || subscription.subscriptionId,
+    const subscription = await this.subscriptionsRepository.findOne({
+      customerId: input.customerId,
     });
 
-    // Return the user (without password hash)
+    if (!subscription) return null;
+
+    const paddleEvent = input.paddleEvent;
+
+    const normalized = normalizePaddleSubscription(paddleEvent);
+
+    const previousPlan = subscription.plan;
+
+    /**
+     * 🧠 CRITICAL FIX:
+     * These fields MUST ALWAYS be stored consistently
+     */
+    await this.subscriptionsRepository.update(subscription.id, {
+      subscriptionId:
+        input.subscriptionId || subscription.subscriptionId,
+
+      plan: normalized.product,
+
+      status: normalized.status,
+
+      startsAt: normalized.startsAt,
+      endsAt: normalized.endsAt,
+      canceledAt: normalized.canceledAt,
+      trialStart: normalized.trialStart,
+      trialEnd: normalized.trialEnd,
+
+      metadata: {
+        currency: normalized.currency,
+        amount: normalized.amount,
+        billingCycle: normalized.billingCycle,
+        collectionMode: normalized.collectionMode,
+        paddleEventType: paddleEvent?.event_type,
+        product: normalized.product,
+      },
+    });
+
     const user = await this.authRepository.findById(subscription.userId);
     if (!user) return null;
+    const newPlan = (normalized.product || '').toLowerCase();
 
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    const previousInterval =
+      subscription.billingInterval || 'month';
+
+    const newInterval =
+      normalized.billingCycle || 'month';
+
+    const previousRank =
+      SUBSCRIPTION_RANK[`${previousPlan}:${previousInterval}`];
+
+    const newRank =
+      SUBSCRIPTION_RANK[`${newPlan}:${newInterval}`];
+
+    const subscriptionChanged =
+      previousPlan !== newPlan ||
+      previousInterval !== newInterval;
+
+    if (subscriptionChanged) {
+      const isUpgrade = newRank > previousRank;
+
+      await sendSubsPlanChangeEmail({
+        email: user.email,
+        firstName: user.firstName,
+
+        previousPlan:
+          PLAN_NAME_MAP[previousPlan] || previousPlan,
+
+        newPlan:
+          PLAN_NAME_MAP[newPlan] || newPlan,
+
+        previousInterval,
+        newInterval,
+
+        isUpgrade,
+      });
+    }
+
+
+    return user;
   }
-
-  async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; tokens: AuthTokens }> {
+  async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; token: string }> {
     const user = await this.authRepository.findByEmail(input.email);
     if (!user) {
       throw new NotFoundError('User');
@@ -215,9 +231,7 @@ export class AuthService {
       throw new ValidationError('Registration is already completed.');
     }
 
-    const salt = await bcrypt.genSalt(
-      parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)
-    );
+    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(input.password, salt);
 
     const updated = await this.authRepository.updateUser(user.id, {
@@ -227,21 +241,18 @@ export class AuthService {
       status: 'ACTIVE',
     });
 
-    const tokens = await this.generateTokens(updated.id, updated.email, updated.role);
-
-    await this.auditLogsRepository.create({
-      userId: updated.id,
-      action: 'REGISTRATION_COMPLETED',
-      entityType: 'User',
-      entityId: updated.id,
-    });
+    const token = generateTokens({ userId: updated.id, email: updated.email, role: updated.role });
 
     const { passwordHash: _, ...userWithoutPassword } = updated;
-    return { user: userWithoutPassword, tokens };
+    return { user: userWithoutPassword, token };
   }
 
-  async checkPendingRegistration(email: string): Promise<PendingRegistrationResult> {
-    const user = await this.authRepository.findByEmail(email.toLowerCase());
+  async checkPendingRegistration(token: string): Promise<PendingRegistrationResult> {
+    const decoded = jwt.verify(token, JWT_ACCESS_SECRET) as unknown as AuthenticatedRequest['user'];
+    if (!decoded || !decoded.email) {
+      throw new ValidationError('Invalid token.');
+    }
+    const user = await this.authRepository.findByEmail(decoded.email.toLowerCase());
     if (!user) {
       return { exists: false };
     }
@@ -254,44 +265,23 @@ export class AuthService {
     };
   }
 
-  async logout(userId: string): Promise<void> {
-    await this.authRepository.revokeAllUserRefreshTokens(userId);
-
-    await this.auditLogsRepository.create({
-      userId,
-      action: 'USER_SIGNED_OUT',
-      entityType: 'User',
-      entityId: userId,
-    });
-  }
 
   async forgotPassword(email: string): Promise<{ resetToken: string }> {
     const user = await this.authRepository.findByEmail(email.toLowerCase());
     if (!user) {
-      // Don't reveal whether the email exists
       throw new ValidationError('If the email exists, a reset link has been sent.');
     }
 
     const resetToken = uuidv4();
     const resetTokenExpiry = new Date(Date.now() + TOKEN.RESET_TOKEN_EXPIRY);
 
-    await this.authRepository.updateUser(user.id, {
-      // In production, store reset token hash in a separate table
-    });
-
-    // In production, send email with reset link
+    await this.authRepository.updateUser(user.id, {});
     return { resetToken };
   }
 
   async resetPassword(resetToken: string, newPassword: string): Promise<void> {
-    // In production, validate reset token from database
-    const salt = await bcrypt.genSalt(
-      parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)
-    );
+    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(newPassword, salt);
-
-    // Find user by reset token and update password
-    // This is a simplified version - in production, store reset tokens in DB
   }
 
   async verifyEmail(userId: string): Promise<void> {
@@ -299,33 +289,5 @@ export class AuthService {
       emailVerified: true,
       status: 'ACTIVE',
     });
-
-    await this.auditLogsRepository.create({
-      userId,
-      action: 'EMAIL_VERIFIED',
-      entityType: 'User',
-      entityId: userId,
-    });
-  }
-
-  private async generateTokens(
-    userId: string,
-    email: string,
-    role: string
-  ): Promise<AuthTokens> {
-    const payload: JwtPayload = { userId, email, role };
-
-    const accessToken = jwt.sign(
-      payload,
-      process.env.JWT_ACCESS_SECRET || 'default-access-secret',
-      { expiresIn: 900 } // 15 minutes in seconds
-    );
-
-    const refreshToken = uuidv4();
-    const expiresAt = new Date(Date.now() + TOKEN.REFRESH_TOKEN_EXPIRY_MS);
-
-    await this.authRepository.saveRefreshToken(userId, refreshToken, expiresAt);
-
-    return { accessToken, refreshToken };
   }
 }

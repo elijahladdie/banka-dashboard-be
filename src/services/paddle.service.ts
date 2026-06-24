@@ -1,41 +1,28 @@
+import { Request } from 'express';
 import axios, { AxiosInstance } from 'axios';
-import { ForbiddenError, ServerError, UnauthorizedError } from '../helpers';
+import { ForbiddenError, ServerError, UnauthorizedError, verifyPaddleSignature } from '../helpers';
+import { PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET, PLAN_NAME_MAP, PLAN_FEATURES, PADDLE_URL } from '../utils/constants';
+import { mapPaddleProductsResponse } from '../utils/paddle-mapper';
+import { processPaddleWebhook, } from '../utils/paddle-webhook';
+import logger from '../utils/logger';
+import { PaddleProductQuery } from '../types';
 
-interface PaddleProductQuery {
-  id?: string[];
-  after?: string;
-  per_page?: number;
-  include?: string[];
-  order_by?: string;
-  status?: string[];
-  tax_category?: string[];
-  type?: 'custom' | 'standard';
-}
 
 export class PaddleService {
   private readonly api: AxiosInstance;
 
   constructor() {
-    const baseURL =
-      process.env.PADDLE_ENV === 'sandbox'
-        ? 'https://sandbox-api.paddle.com'
-        : 'https://api.paddle.com';
-
+    const baseURL = PADDLE_URL
     this.api = axios.create({
       baseURL,
       headers: {
-        'Authorization': `Bearer ${process.env.PADDLE_API_KEY}`,
+        'Authorization': `Bearer ${PADDLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       timeout: 15000,
     });
   }
 
-  /**
-   * List products from Paddle.
-   * GET /products
-   * Requires `product.read` permission.
-   */
   async listProducts(query: PaddleProductQuery = {}) {
     try {
       const params: Record<string, any> = {};
@@ -50,24 +37,162 @@ export class PaddleService {
       if (query.type) params.type = query.type;
 
       const { data } = await this.api.get('/products', { params });
-      console.log('Paddle API /products response:', data);
       return data;
     } catch (error: any) {
       throw this.handlePaddleError(error, 'Failed to fetch products from Paddle');
     }
   }
 
-  /**
-   * List products with their associated prices in a single call.
-   * GET /products?include=prices
-   */
-  async listProductsWithPrices(query: PaddleProductQuery = {}) {
-    return this.listProducts({ ...query, include: ['prices'] });
+  async findCustomer(customerId: string) {
+    try {
+      const { data } = await this.api.get(
+        `/customers/${customerId}`
+      );
+
+      return data?.data ?? null;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+
+      throw this.handlePaddleError(
+        error,
+        `Failed to fetch Paddle customer ${customerId}`
+      );
+    }
   }
 
-  /**
-   * Normalize Paddle API errors into application-friendly errors.
-   */
+
+
+  async listProductsWithPrices(query: PaddleProductQuery = {}) {
+    const { interval = 'year' } = query;
+
+    const result = await this.listProducts({
+      ...query,
+      include: ['prices'],
+    });
+
+    const mapped = mapPaddleProductsResponse(result);
+
+    const starterPlan = PLAN_FEATURES.find(
+      plan => plan.name.toLowerCase() === 'starter'
+    );
+
+    const proPlan = PLAN_FEATURES.find(
+      plan => plan.name.toLowerCase() === 'pro'
+    );
+
+    const advancedPlan = PLAN_FEATURES.find(
+      plan => plan.name.toLowerCase() === 'advanced'
+    );
+
+    const getPlanFeatures = (planKey?: string) => {
+      switch (planKey?.toUpperCase()) {
+        case 'STARTER':
+          return starterPlan?.features ?? [];
+
+
+        case 'PRO':
+          return [
+            ...(proPlan?.subtitle ? [proPlan?.subtitle] : []),
+            ...(proPlan?.features ?? []),
+          ];
+
+        case 'ADVANCED':
+          return [
+            ...(advancedPlan?.subtitle ? [advancedPlan?.subtitle] : []),
+            ...(advancedPlan?.features ?? []),
+          ];
+
+        default:
+          return [];
+      }
+
+
+    };
+
+    return (mapped?.data || [])
+      .map((product: any) => {
+        const planKey =
+          PLAN_NAME_MAP[product.customData?.plan?.toLowerCase()] ||
+          PLAN_NAME_MAP[product.name?.toLowerCase()];
+
+
+        const selectedPrice = (product.prices || []).find(
+          (price: any) =>
+            price.billingCycle?.interval === interval
+        );
+
+        if (!selectedPrice) {
+          return null;
+        }
+
+        return {
+          id: product.id,
+          name: product.name,
+          type: product.type,
+          description: product.description,
+          taxCategory: product.taxCategory,
+          imageUrl: product.imageUrl,
+          customData: product.customData,
+          status: product.status,
+
+          billingInterval: interval,
+          prices: [selectedPrice],
+
+          features: getPlanFeatures(planKey),
+
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
+        };
+      })
+      .filter(Boolean);
+  }
+
+
+  async handleWebhook(req: Request) {
+
+    const rawBody: string = (req as any).rawBody || '';
+    const paddleSignature = req.headers['paddle-signature'] as string || '';
+    const secret = PADDLE_WEBHOOK_SECRET;
+
+    if (!secret) {
+      logger.error('[paddle-webhook] PADDLE_WEBHOOK_SECRET not configured');
+      return;
+    }
+
+    if (!verifyPaddleSignature(rawBody, paddleSignature, secret)) {
+      logger.warn('[paddle-webhook] Invalid signature');
+      return;
+    }
+
+    // Process the event asynchronously
+    const event = JSON.parse(rawBody);
+    processPaddleWebhook(event).then((result) => {
+      if (!result.handled) {
+        logger.info(`[paddle-webhook] Not handled: ${result.reason}`);
+      }
+    }).catch((err) => {
+      logger.error('[paddle-webhook] Processing error:', err);
+    });
+  }
+
+  async listTransactions(query: { after?: string; per_page?: number; status?: string } = {}) {
+    try {
+      const params: Record<string, any> = {};
+      if (query.after) params.after = query.after;
+      if (query.per_page) params.per_page = query.per_page;
+      if (query.status) params.status = query.status;
+
+      const { data } = await this.api.get('/transactions', { params });
+      return data.data;
+    } catch (error: any) {
+      throw this.handlePaddleError(error, 'Failed to fetch transactions from Paddle');
+    }
+  }
+
+
+
   private handlePaddleError(error: any, fallbackMessage: string): never {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;

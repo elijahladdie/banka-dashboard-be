@@ -1,6 +1,3 @@
-/**
- * Maps a Paddle API price object (snake_case) to the desired camelCase structure.
- */
 function mapPaddlePrice(price: any) {
   if (!price) return null;
 
@@ -45,10 +42,6 @@ function mapPaddlePrice(price: any) {
   };
 }
 
-/**
- * Maps a Paddle API product object (snake_case) to the desired camelCase structure,
- * including its nested prices (if present).
- */
 function mapPaddleProduct(product: any) {
   if (!product) return null;
 
@@ -68,12 +61,6 @@ function mapPaddleProduct(product: any) {
   };
 }
 
-/**
- * Maps the full Paddle products response to the desired camelCase structure.
- *
- * @param response - The raw response from Paddle's list products endpoint.
- * @returns The restructured response with camelCase keys.
- */
 export function mapPaddleProductsResponse(response: any) {
   if (!response) return response;
 

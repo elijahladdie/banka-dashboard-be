@@ -1,4 +1,4 @@
-import { User, RefreshToken } from '@prisma/client';
+import { User } from '@prisma/client';
 
 export interface IAuthRepository {
   findByEmail(email: string): Promise<User | null>;
@@ -13,8 +13,4 @@ export interface IAuthRepository {
     source?: string;
   }): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
-  saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<RefreshToken>;
-  findRefreshToken(token: string): Promise<RefreshToken | null>;
-  revokeRefreshToken(id: string): Promise<RefreshToken>;
-  revokeAllUserRefreshTokens(userId: string): Promise<void>;
 }

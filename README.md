@@ -127,11 +127,6 @@ docker-compose up -d
 - `PATCH /api/meetings/:id/status` - Update status
 - `DELETE /api/meetings/:id` - Delete meeting
 
-### Reports
-- `GET /api/reports` - List reports
-- `POST /api/reports` - Create report
-- `DELETE /api/reports/:id` - Delete report
-
 ### Notifications
 - `GET /api/notifications` - My notifications
 - `GET /api/notifications/unread-count` - Unread count
@@ -144,9 +139,6 @@ docker-compose up -d
 - `GET /api/analytics/monthly-revenue` - Monthly trend
 - `GET /api/analytics/advisor-capacity` - Capacity stats
 - `GET /api/analytics/goal-completion-rate` - Goal completion
-
-### Audit Logs (Admin only)
-- `GET /api/audit-logs` - List audit logs
 
 ### Settings
 - `GET /api/settings/profile` - Get profile

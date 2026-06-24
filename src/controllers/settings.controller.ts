@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class SettingsController {
-  constructor(private readonly settingsService: SettingsService) {}
+  private readonly settingsService: SettingsService;
+  constructor() {
+    this.settingsService = new SettingsService();
+  }
 
   async getProfile(req: AuthenticatedRequest, res: Response) {
     const user = await this.settingsService.getProfile(req.user!.userId);

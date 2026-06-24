@@ -1,10 +1,14 @@
 import { PrismaClient} from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import logger from '../utils/logger';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL!;
+const adapter = new PrismaPg(connectionString);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('Seeding database...');
+  logger.info('Seeding database...');
 
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash('Admin@123', salt);
@@ -92,7 +96,7 @@ async function main() {
       userId: subscriberUser.id,
       plan: 'PRO',
       status: 'ACTIVE',
-      billingInterval: 'MONTHLY',
+      billingInterval: 'month',
       startsAt: new Date(),
       trialStart: new Date(),
       trialEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -134,18 +138,18 @@ async function main() {
     },
   });
 
-  console.log('Database seeded successfully!');
-  console.log('Default credentials:');
-  console.log('  All accounts: password = "Admin@123"');
-  console.log('  Admin: admin@banka.rw');
-  console.log('  Finance: finance@banka.rw');
-  console.log('  Advisor: advisor@banka.rw');
-  console.log('  Subscriber: subscriber@banka.rw');
+  logger.info('Database seeded successfully!');
+  logger.info('Default credentials:');
+  logger.info('  All accounts: password = "Admin@123"');
+  logger.info('  Admin: admin@banka.rw');
+  logger.info('  Finance: finance@banka.rw');
+  logger.info('  Advisor: advisor@banka.rw');
+  logger.info('  Subscriber: subscriber@banka.rw');
 }
 
 main()
   .catch((e) => {
-    console.error('Seed error:', e);
+    logger.error('Seed error:', e);
     process.exit(1);
   })
   .finally(async () => {

@@ -1,14 +1,16 @@
-import { SubscriberAssignment } from '@prisma/client';
+import { Prisma, SubscriberAssignment } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IAssignmentsRepository } from '../interfaces/assignments.interface';
+import { INCLUDE_USER } from '../../constants';
+import logger from '../../utils/logger';
 
 export class AssignmentsRepository implements IAssignmentsRepository {
   async findById(id: string): Promise<SubscriberAssignment | null> {
-    return prisma.subscriberAssignment.findUnique({ where: { id } });
+    return await prisma.subscriberAssignment.findUnique({ where: { id } });
   }
 
   async findActiveBySubscriber(subscriberId: string): Promise<SubscriberAssignment | null> {
-    return prisma.subscriberAssignment.findFirst({
+    return await prisma.subscriberAssignment.findFirst({
       where: { subscriberId, isActive: true },
     });
   }
@@ -32,23 +34,36 @@ export class AssignmentsRepository implements IAssignmentsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<SubscriberAssignment[]> {
-    return prisma.subscriberAssignment.findMany({
-      ...params,
-      include: {
-        subscriber: true,
-        advisor: { include: { user: true } },
-        assignedByUser: true,
-      },
+  }): Promise<[SubscriberAssignment[], number]> {
+    logger.info('Finding all assignments with params:', params);
+    const [records, count] = await prisma.$transaction([
+      prisma.subscriberAssignment.findMany({
+        ...params,
+        include: {
+          subscriber: { include: INCLUDE_USER },
+          advisor: { include: INCLUDE_USER },
+          assignedByUser: INCLUDE_USER.user,
+        },
+      }),
+      prisma.subscriberAssignment.count({ where: params.where })]);
+
+    return [records, count];
+  }
+
+  async create(data: Prisma.SubscriberAssignmentCreateInput): Promise<SubscriberAssignment> {
+    const subscriber = await prisma.user.findUnique({
+      where: { id: data.subscriber.connect?.id },
     });
-  }
 
-  async count(where?: Record<string, any>): Promise<number> {
-    return prisma.subscriberAssignment.count({ where });
-  }
+    const advisor = await prisma.advisor.findUnique({
+      where: { id: data.advisor.connect?.id },
+    });
 
-  async create(data: Partial<SubscriberAssignment>): Promise<SubscriberAssignment> {
-    return prisma.subscriberAssignment.create({ data: data as any });
+    const assignedByUser = await prisma.user.findUnique({
+      where: { id: data.assignedByUser.connect?.id },
+    });
+
+    return prisma.subscriberAssignment.create({ data });
   }
 
   async endAssignment(id: string): Promise<SubscriberAssignment> {

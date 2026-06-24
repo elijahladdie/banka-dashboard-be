@@ -72,7 +72,7 @@ const options: swaggerJsdoc.Options = {
             userId: { type: 'string', format: 'uuid' },
             plan: { type: 'string', enum: ['STARTER', 'PRO', 'ADVANCED'] },
             status: { type: 'string', enum: ['ACTIVE', 'PAST_DUE', 'TRIALING', 'CANCELED', 'EXPIRED'] },
-            billingInterval: { type: 'string', enum: ['MONTHLY', 'YEARLY'] },
+            billingInterval: { type: 'string', enum: ['month', 'year'] },
             customerId: { type: 'string', nullable: true },
             subscriptionId: { type: 'string', nullable: true },
             startsAt: { type: 'string', format: 'date-time', nullable: true },
@@ -143,20 +143,6 @@ const options: swaggerJsdoc.Options = {
             updatedAt: { type: 'string', format: 'date-time' },
           },
         },
-        FinancialReport: {
-          type: 'object',
-          properties: {
-            id: { type: 'string', format: 'uuid' },
-            subscriberId: { type: 'string', format: 'uuid' },
-            advisorId: { type: 'string', format: 'uuid' },
-            title: { type: 'string' },
-            reportType: { type: 'string', enum: ['MONTHLY', 'QUARTERLY', 'ANNUAL', 'CUSTOM'] },
-            fileUrl: { type: 'string', nullable: true },
-            summary: { type: 'string', nullable: true },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-          },
-        },
         Meeting: {
           type: 'object',
           properties: {
@@ -183,21 +169,6 @@ const options: swaggerJsdoc.Options = {
             readAt: { type: 'string', format: 'date-time', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
-          },
-        },
-        AuditLog: {
-          type: 'object',
-          properties: {
-            id: { type: 'string', format: 'uuid' },
-            userId: { type: 'string', format: 'uuid' },
-            action: { type: 'string' },
-            entityType: { type: 'string' },
-            entityId: { type: 'string', format: 'uuid', nullable: true },
-            oldValues: { type: 'object', nullable: true },
-            newValues: { type: 'object', nullable: true },
-            ipAddress: { type: 'string', nullable: true },
-            userAgent: { type: 'string', nullable: true },
-            createdAt: { type: 'string', format: 'date-time' },
           },
         },
         AnalyticsOverview: {
@@ -245,13 +216,6 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
-        AuthTokens: {
-          type: 'object',
-          properties: {
-            accessToken: { type: 'string' },
-            refreshToken: { type: 'string' },
-          },
-        },
         ApiResponse: {
           type: 'object',
           properties: {
@@ -290,11 +254,9 @@ const options: swaggerJsdoc.Options = {
       { name: 'Advisors', description: 'Advisor profiles and management' },
       { name: 'Assignments', description: 'Subscriber-to-Advisor assignments' },
       { name: 'Goals', description: 'Financial goals tracking' },
-      { name: 'Reports', description: 'Financial reports' },
       { name: 'Meetings', description: 'Advisor-subscriber meetings' },
       { name: 'Notifications', description: 'User notifications' },
       { name: 'Analytics', description: 'Dashboard analytics (admin/finance)' },
-      { name: 'Audit Logs', description: 'Compliance audit trail (admin only)' },
       { name: 'Settings', description: 'Profile and password management' },
       { name: 'Notes', description: 'Advisory notes from advisors' },
       { name: 'Paddle', description: 'Paddle API integration (products & pricing)' },
@@ -386,38 +348,6 @@ const options: swaggerJsdoc.Options = {
             200: { description: 'Signed in successfully, returns user + tokens' },
             401: { description: 'Invalid credentials' },
           },
-        },
-      },
-      '/api/auth/refresh-token': {
-        post: {
-          tags: ['Authentication'],
-          summary: 'Refresh access token using refresh token',
-          security: [],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['refreshToken'],
-                  properties: {
-                    refreshToken: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: 'New tokens issued' },
-            401: { description: 'Invalid or expired refresh token' },
-          },
-        },
-      },
-      '/api/auth/logout': {
-        post: {
-          tags: ['Authentication'],
-          summary: 'Sign out (revoke all refresh tokens)',
-          responses: { 200: { description: 'Signed out successfully' } },
         },
       },
       '/api/auth/forgot-password': {
@@ -561,7 +491,7 @@ const options: swaggerJsdoc.Options = {
                   type: 'object',
                   properties: {
                     plan: { type: 'string', enum: ['STARTER', 'PRO', 'ADVANCED'] },
-                    billingInterval: { type: 'string', enum: ['MONTHLY', 'YEARLY'] },
+                    billingInterval: { type: 'string', enum: ['month', 'year'] },
                   },
                 },
               },
@@ -834,66 +764,6 @@ const options: swaggerJsdoc.Options = {
       },
 
       // ============================================================
-      // Reports
-      // ============================================================
-      '/api/reports': {
-        get: {
-          tags: ['Reports'],
-          summary: 'List all financial reports',
-          parameters: [
-            { name: 'page', in: 'query', schema: { type: 'integer' } },
-            { name: 'limit', in: 'query', schema: { type: 'integer' } },
-            { name: 'subscriberId', in: 'query', schema: { type: 'string' } },
-            { name: 'reportType', in: 'query', schema: { type: 'string' } },
-          ],
-          responses: { 200: { description: 'Paginated reports' } },
-        },
-        post: {
-          tags: ['Reports'],
-          summary: 'Create a financial report',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    subscriberId: { type: 'string', format: 'uuid' },
-                    advisorId: { type: 'string', format: 'uuid' },
-                    title: { type: 'string' },
-                    reportType: { type: 'string', enum: ['MONTHLY', 'QUARTERLY', 'ANNUAL', 'CUSTOM'] },
-                    fileUrl: { type: 'string' },
-                    summary: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: { 201: { description: 'Report created' } },
-        },
-      },
-      '/api/reports/{id}': {
-        get: {
-          tags: ['Reports'],
-          summary: 'Get report by ID',
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-          responses: { 200: { description: 'Report details' } },
-        },
-        put: {
-          tags: ['Reports'],
-          summary: 'Update report',
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-          responses: { 200: { description: 'Report updated' } },
-        },
-        delete: {
-          tags: ['Reports'],
-          summary: 'Delete report',
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-          responses: { 200: { description: 'Report deleted' } },
-        },
-      },
-
-      // ============================================================
       // Meetings
       // ============================================================
       '/api/meetings': {
@@ -1040,63 +910,6 @@ const options: swaggerJsdoc.Options = {
           tags: ['Analytics'],
           summary: 'Dashboard analytics overview (Admin/Finance)',
           responses: { 200: { description: 'Analytics overview data', content: { 'application/json': { schema: { $ref: '#/components/schemas/AnalyticsOverview' } } } } },
-        },
-      },
-      '/api/analytics/revenue-by-plan': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Revenue breakdown by subscription plan',
-          responses: { 200: { description: 'Revenue by plan' } },
-        },
-      },
-      '/api/analytics/monthly-revenue': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Monthly revenue trend',
-          parameters: [{ name: 'months', in: 'query', schema: { type: 'integer', default: 12 } }],
-          responses: { 200: { description: 'Monthly revenue data' } },
-        },
-      },
-      '/api/analytics/advisor-capacity': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Advisor capacity statistics',
-          responses: { 200: { description: 'Advisor capacity' } },
-        },
-      },
-      '/api/analytics/goal-completion-rate': {
-        get: {
-          tags: ['Analytics'],
-          summary: 'Goal completion rate statistics',
-          responses: { 200: { description: 'Goal completion rate' } },
-        },
-      },
-
-      // ============================================================
-      // Audit Logs
-      // ============================================================
-      '/api/audit-logs': {
-        get: {
-          tags: ['Audit Logs'],
-          summary: 'List audit logs (Admin only)',
-          parameters: [
-            { name: 'page', in: 'query', schema: { type: 'integer' } },
-            { name: 'limit', in: 'query', schema: { type: 'integer' } },
-            { name: 'userId', in: 'query', schema: { type: 'string' } },
-            { name: 'action', in: 'query', schema: { type: 'string' } },
-            { name: 'entityType', in: 'query', schema: { type: 'string' } },
-            { name: 'fromDate', in: 'query', schema: { type: 'string', format: 'date' } },
-            { name: 'toDate', in: 'query', schema: { type: 'string', format: 'date' } },
-          ],
-          responses: { 200: { description: 'Paginated audit logs' } },
-        },
-      },
-      '/api/audit-logs/{id}': {
-        get: {
-          tags: ['Audit Logs'],
-          summary: 'Get audit log by ID',
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-          responses: { 200: { description: 'Audit log details' } },
         },
       },
 

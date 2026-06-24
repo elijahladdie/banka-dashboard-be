@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class NotesController {
-  constructor(private readonly notesService: NotesService) {}
+  private readonly notesService: NotesService;
+  constructor() {
+    this.notesService = new NotesService();
+  }
 
   async findByAdvisor(req: AuthenticatedRequest, res: Response) {
     const advisorId = req.params.advisorId || req.user!.userId;
@@ -25,10 +28,5 @@ export class NotesController {
   async update(req: AuthenticatedRequest, res: Response) {
     const note = await this.notesService.update(req.params.id, req.body);
     ResponseHandler.success(res, note, 'Note updated successfully.');
-  }
-
-  async delete(req: AuthenticatedRequest, res: Response) {
-    await this.notesService.delete(req.params.id);
-    ResponseHandler.success(res, null, 'Note deleted successfully.');
   }
 }

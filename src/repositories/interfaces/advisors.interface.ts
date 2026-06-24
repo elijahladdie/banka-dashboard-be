@@ -9,8 +9,7 @@ export interface IAdvisorsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<(Advisor & { user: User })[]>;
-  count(where?: Record<string, any>): Promise<number>;
+  }): Promise<[(Advisor & { user: User })[], number]>;
   create(data: Partial<Advisor>): Promise<Advisor>;
   update(id: string, data: Partial<Advisor>): Promise<Advisor>;
   softDelete(id: string): Promise<Advisor>;

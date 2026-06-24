@@ -1,15 +1,15 @@
 import { User } from '@prisma/client';
 import { UsersRepository } from '../repositories/implementations/users.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { NotFoundError } from '../helpers';
 import { PaginatedResult, PaginationParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import logger from '../utils/logger';
 
 export class UsersService {
-  constructor(
-    private readonly usersRepository: UsersRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly usersRepository: UsersRepository;
+  constructor() {
+    this.usersRepository = new UsersRepository();
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<User>> {
     const pagination = parsePaginationParams(query);
@@ -26,34 +26,22 @@ export class UsersService {
       ];
     }
 
-    const [users, total] = await Promise.all([
-      this.usersRepository.findAll({ skip, take, orderBy, where }),
-      this.usersRepository.count(where),
-    ]);
-
+    const [users, total] = await this.usersRepository.findAll({ skip, take, orderBy, where });
     return paginateResult(users, total, pagination);
   }
 
   async findById(id: string): Promise<User> {
-    const user = await this.usersRepository.findById(id);
+    const user = await this.usersRepository.findOne({ id });
+    logger.info(`Finding user by ID: ${id}, found:`, user);
     if (!user) throw new NotFoundError('User');
     return user;
   }
 
   async update(id: string, data: Partial<User>, actorId: string): Promise<User> {
+    logger.info(`Updating user with ID: ${id} and data:`, data);
     const user = await this.findById(id);
 
     const updated = await this.usersRepository.update(id, data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'USER_UPDATED',
-      entityType: 'User',
-      entityId: id,
-      oldValues: { role: user.role, status: user.status } as any,
-      newValues: data as any,
-    });
-
     return updated;
   }
 
@@ -61,15 +49,6 @@ export class UsersService {
     const user = await this.findById(id);
 
     const deleted = await this.usersRepository.softDelete(id);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'USER_DELETED',
-      entityType: 'User',
-      entityId: id,
-      oldValues: { status: user.status } as any,
-      newValues: { status: 'INACTIVE', deletedAt: new Date().toISOString() },
-    });
 
     return deleted;
   }

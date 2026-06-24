@@ -4,10 +4,16 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class SubscriptionsController {
-  constructor(private readonly subscriptionsService: SubscriptionsService) {}
+  private readonly subscriptionsService: SubscriptionsService;
+  constructor() {
+    this.subscriptionsService = new SubscriptionsService();
+  }
 
-  async findAll(req: Request, res: Response) {
-    const result = await this.subscriptionsService.findAll(req.query);
+  async findAll(req: AuthenticatedRequest, res: Response) {
+    if (req.user?.role === 'FINANCIAL_ADVISOR') {
+      req.query.advisorId = req.user.userId;
+    }
+    const result = await this.subscriptionsService.findAll({ ...req.query, user: req?.user });
     ResponseHandler.success(res, result, 'Subscriptions retrieved successfully.');
   }
 

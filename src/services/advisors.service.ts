@@ -1,15 +1,15 @@
 import { Advisor, User } from '@prisma/client';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
-import { ConflictError, NotFoundError, ValidationError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { ConflictError, NotFoundError, } from '../helpers';
+import { PaginatedResult, TUserSelect } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class AdvisorsService {
-  constructor(
-    private readonly advisorsRepository: AdvisorsRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly advisorsRepository: AdvisorsRepository;
+  constructor() {
+    this.advisorsRepository = new AdvisorsRepository();
+
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Advisor & { user: User }>> {
     const pagination = parsePaginationParams(query);
@@ -19,17 +19,14 @@ export class AdvisorsService {
     if (query.isAvailable !== undefined) where.isAvailable = query.isAvailable === 'true';
     if (query.specialization) where.specialization = { contains: query.specialization, mode: 'insensitive' };
 
-    const [advisors, total] = await Promise.all([
-      this.advisorsRepository.findAll({ skip, take, orderBy, where }),
-      this.advisorsRepository.count(where),
-    ]);
+    const [advisors, total] = await this.advisorsRepository.findAll({ skip, take, orderBy, where });
 
     return paginateResult(advisors, total, pagination);
   }
 
-  async findById(id: string): Promise<Advisor & { user: User }> {
-    const advisor = await this.advisorsRepository.findById(id);
-    if (!advisor) throw new NotFoundError('Advisor');
+  async findById(id: string): Promise<(Advisor & { user: TUserSelect })> {
+    const advisor = await this.advisorsRepository.findById(id) as unknown as (Advisor & { user: TUserSelect }) ;
+    if (!advisor) throw new NotFoundError('No advisor found');
     return advisor;
   }
 
@@ -60,43 +57,18 @@ export class AdvisorsService {
       isAvailable: true,
     });
 
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'ADVISOR_CREATED',
-      entityType: 'Advisor',
-      entityId: advisor.id,
-      newValues: data,
-    });
-
     return advisor;
   }
 
   async update(id: string, data: Partial<Advisor>, actorId: string): Promise<Advisor> {
     await this.findById(id);
     const updated = await this.advisorsRepository.update(id, data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'ADVISOR_UPDATED',
-      entityType: 'Advisor',
-      entityId: id,
-      newValues: data as any,
-    });
-
     return updated;
   }
 
   async softDelete(id: string, actorId: string): Promise<Advisor> {
     await this.findById(id);
     const deleted = await this.advisorsRepository.softDelete(id);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'ADVISOR_DELETED',
-      entityType: 'Advisor',
-      entityId: id,
-    });
-
     return deleted;
   }
 

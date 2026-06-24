@@ -1,15 +1,14 @@
 import { Subscription } from '@prisma/client';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { NotFoundError } from '../helpers';
 import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class SubscriptionsService {
-  constructor(
-    private readonly subscriptionsRepository: SubscriptionsRepository,
-    private readonly auditLogsRepository: AuditLogsRepository
-  ) {}
+  private readonly subscriptionsRepository: SubscriptionsRepository;
+  constructor() {
+    this.subscriptionsRepository = new SubscriptionsRepository();
+  }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Subscription>> {
     const pagination = parsePaginationParams(query);
@@ -19,50 +18,29 @@ export class SubscriptionsService {
     if (query.plan) where.plan = query.plan;
     if (query.status) where.status = query.status;
 
-    const [subscriptions, total] = await Promise.all([
-      this.subscriptionsRepository.findAll({ skip, take, orderBy, where }),
-      this.subscriptionsRepository.count(where),
-    ]);
+    const [subscriptions, total] = await this.subscriptionsRepository.findAll({ skip, take, orderBy, where });
 
     return paginateResult(subscriptions, total, pagination);
   }
 
   async findById(id: string): Promise<Subscription> {
-    const subscription = await this.subscriptionsRepository.findById(id);
+    const subscription = await this.subscriptionsRepository.findOne({ id });
     if (!subscription) throw new NotFoundError('Subscription');
     return subscription;
   }
 
   async findByUserId(userId: string): Promise<Subscription | null> {
-    return this.subscriptionsRepository.findByUserId(userId);
+    return this.subscriptionsRepository.findOne({ userId });
   }
 
   async create(data: Partial<Subscription>, actorId: string): Promise<Subscription> {
     const subscription = await this.subscriptionsRepository.create(data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'SUBSCRIPTION_CREATED',
-      entityType: 'Subscription',
-      entityId: subscription.id,
-      newValues: data as any,
-    });
-
     return subscription;
   }
 
   async update(id: string, data: Partial<Subscription>, actorId: string): Promise<Subscription> {
     await this.findById(id);
     const updated = await this.subscriptionsRepository.update(id, data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'SUBSCRIPTION_UPDATED',
-      entityType: 'Subscription',
-      entityId: id,
-      newValues: data as any,
-    });
-
     return updated;
   }
 
@@ -74,16 +52,6 @@ export class SubscriptionsService {
       canceledAt: new Date(),
       cancelAtPeriodEnd: true,
     });
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'SUBSCRIPTION_CANCELED',
-      entityType: 'Subscription',
-      entityId: id,
-      oldValues: { status: subscription.status } as any,
-      newValues: { status: 'CANCELED' },
-    });
-
     return updated;
   }
 }

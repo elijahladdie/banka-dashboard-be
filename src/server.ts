@@ -2,10 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import app from './app';
-import { logger } from './utils/logger';
+import logger from './utils/logger';
 import prisma from './utils/prisma';
-
-const PORT = process.env.PORT || 4000;
+import { PORT, NODE_ENV } from './utils/constants';
 
 async function main() {
   try {
@@ -17,7 +16,7 @@ async function main() {
     app.listen(PORT, () => {
       logger.info(`Banka API server running on port ${PORT}`);
       logger.info(`Health check: http://localhost:${PORT}/api/health`);
-      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`Environment: ${NODE_ENV}`);
     });
   } catch (error) {
     logger.error('Failed to start server', { error });

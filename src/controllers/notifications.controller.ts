@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  private readonly notificationsService: NotificationsService;
+  constructor() {
+    this.notificationsService = new NotificationsService();
+  }
 
   async findByUser(req: AuthenticatedRequest, res: Response) {
     const userId = req.params.userId || req.user!.userId;
@@ -30,10 +33,5 @@ export class NotificationsController {
   async getUnreadCount(req: AuthenticatedRequest, res: Response) {
     const count = await this.notificationsService.getUnreadCount(req.user!.userId);
     ResponseHandler.success(res, { unreadCount: count }, 'Unread count retrieved.');
-  }
-
-  async delete(req: AuthenticatedRequest, res: Response) {
-    await this.notificationsService.delete(req.params.id);
-    ResponseHandler.success(res, null, 'Notification deleted successfully.');
   }
 }

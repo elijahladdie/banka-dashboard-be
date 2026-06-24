@@ -4,7 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class MeetingsController {
-  constructor(private readonly meetingsService: MeetingsService) {}
+  private readonly meetingsService: MeetingsService;
+  constructor() {
+    this.meetingsService = new MeetingsService();
+  }
 
   async findAll(req: Request, res: Response) {
     const result = await this.meetingsService.findAll(req.query);
@@ -33,10 +36,5 @@ export class MeetingsController {
       req.user!.userId
     );
     ResponseHandler.success(res, meeting, 'Meeting status updated successfully.');
-  }
-
-  async delete(req: AuthenticatedRequest, res: Response) {
-    await this.meetingsService.delete(req.params.id, req.user!.userId);
-    ResponseHandler.success(res, null, 'Meeting deleted successfully.');
   }
 }

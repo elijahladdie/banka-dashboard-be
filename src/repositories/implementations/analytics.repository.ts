@@ -1,140 +1,326 @@
+import { AnalyticsOverview } from '../../types';
 import prisma from '../../utils/prisma';
-import { IAnalyticsRepository, AnalyticsOverview } from '../interfaces/analytics.interface';
+import { IAnalyticsRepository } from '../interfaces/analytics.interface';
 
 export class AnalyticsRepository implements IAnalyticsRepository {
   async getOverview(): Promise<AnalyticsOverview> {
-    const monthlyRevenue = await this.getMonthlyRevenue(12);
+    const [
+      subscriberTrend,
+      subscriptionTrend,
+      goalTrend,
+    ] = await Promise.all([
+      this.getSubscriberTrend(),
+      this.getSubscriptionTrend(),
+      this.getGoalTrend(),
+    ]);
 
-    const overview = await prisma.$transaction(async (tx) => {
+
+    return prisma.$transaction(async (tx) => {
+      const totalUsers = await tx.user.count({
+        where: {
+          deletedAt: null,
+        },
+      });
+
       const totalSubscribers = await tx.user.count({
-        where: { role: 'SUBSCRIBER', deletedAt: null },
+        where: {
+          role: 'SUBSCRIBER',
+          deletedAt: null,
+        },
+      });
+
+      const totalAdmins = await tx.user.count({
+        where: {
+          role: 'PLATFORM_ADMIN',
+          deletedAt: null,
+        },
       });
 
       const totalAdvisors = await tx.advisor.count({
-        where: { deletedAt: null },
+        where: {
+          deletedAt: null,
+        },
+      });
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const recentSubscribers = await tx.user.count({
+        where: {
+          role: 'SUBSCRIBER',
+          deletedAt: null,
+          createdAt: {
+            gte: thirtyDaysAgo,
+          },
+        },
       });
 
       const activeSubscriptions = await tx.subscription.count({
-        where: { status: 'ACTIVE' },
+        where: {
+          status: 'ACTIVE',
+        },
       });
 
-      const subscriptions = await tx.subscription.groupBy({
-        by: ['plan'],
-        where: { status: 'ACTIVE' },
-        _count: { plan: true },
+      const cancelledSubscriptions = await tx.subscription.count({
+        where: {
+          status: 'CANCELED',
+        },
       });
 
-      const revenueByPlan = subscriptions.map((s) => ({
-        plan: s.plan,
-        revenue: 0,
-        count: s._count.plan,
-      }));
-
-      const advisors = await tx.advisor.findMany({
-        where: { deletedAt: null },
-        select: { maxClients: true, currentClients: true },
+      const inactiveSubscriptions = await tx.subscription.count({
+        where: {
+          status: {
+            not: 'ACTIVE',
+          },
+        },
+      });
+  
+      const monthlyPlans = await tx.subscription.count({
+        where: {
+          status: 'ACTIVE',
+          billingInterval: 'month',
+        },
       });
 
-      const total = advisors.reduce((sum, a) => sum + a.maxClients, 0);
-      const utilized = advisors.reduce((sum, a) => sum + a.currentClients, 0);
+      const yearlyPlans = await tx.subscription.count({
+        where: {
+          status: 'ACTIVE',
+          billingInterval: 'year',
+        },
+      });
 
       const goalTotal = await tx.goal.count({
-        where: { deletedAt: null },
-      });
-      const goalCompleted = await tx.goal.count({
-        where: { status: 'COMPLETED', deletedAt: null },
+        where: {
+          deletedAt: null,
+        },
       });
 
-      return {
-        totalSubscribers,
-        totalAdvisors,
-        activeSubscriptions,
-        revenueByPlan,
-        advisorCapacity: {
-          total,
-          utilized,
-          available: total - utilized,
+      const goalCompleted = await tx.goal.count({
+        where: {
+          status: 'COMPLETED',
+          deletedAt: null,
         },
-        goalCompletionRate: {
-          completed: goalCompleted,
+      });
+
+      const goalActive = await tx.goal.count({
+        where: {
+          status: 'IN_PROGRESS',
+          deletedAt: null,
+        },
+      });
+
+      const goalCancelled = await tx.goal.count({
+        where: {
+          status: 'CANCELED',
+          deletedAt: null,
+        },
+      });
+
+      const advisors = await tx.advisor.findMany({
+        where: {
+          deletedAt: null,
+        },
+        select: {
+          maxClients: true,
+          currentClients: true,
+        },
+      });
+
+      const totalCapacity = advisors.reduce(
+        (sum, advisor) => sum + advisor.maxClients,
+        0,
+      );
+
+      const utilizedCapacity = advisors.reduce(
+        (sum, advisor) => sum + advisor.currentClients,
+        0,
+      );
+
+      const availableCapacity =
+        totalCapacity - utilizedCapacity;
+
+      return {
+        users: {
+          total: totalUsers,
+          subscribers: totalSubscribers,
+          advisors: totalAdvisors,
+          admins: totalAdmins,
+          newSubscribersLast30Days: recentSubscribers,
+        },
+
+        subscriptions: {
+          active: activeSubscriptions,
+          inactive: inactiveSubscriptions,
+          cancelled: cancelledSubscriptions,
+
+          monthlyPlans,
+          yearlyPlans,
+
+          monthlyPercentage:
+            activeSubscriptions > 0
+              ? Math.round(
+                (monthlyPlans / activeSubscriptions) * 100,
+              )
+              : 0,
+
+          yearlyPercentage:
+            activeSubscriptions > 0
+              ? Math.round(
+                (yearlyPlans / activeSubscriptions) * 100,
+              )
+              : 0,
+        },
+
+        goals: {
           total: goalTotal,
-          rate: goalTotal > 0 ? Math.round((goalCompleted / goalTotal) * 100) : 0,
+          active: goalActive,
+          completed: goalCompleted,
+          cancelled: goalCancelled,
+
+          completionRate:
+            goalTotal > 0
+              ? Math.round(
+                (goalCompleted / goalTotal) * 100,
+              )
+              : 0,
+        },
+
+        advisorCapacity: {
+          totalCapacity,
+          utilizedCapacity,
+          availableCapacity,
+
+          utilizationRate:
+            totalCapacity > 0
+              ? Math.round(
+                (utilizedCapacity / totalCapacity) * 100,
+              )
+              : 0,
+        },
+
+        trends: {
+          subscribers: subscriberTrend,
+          subscriptions: subscriptionTrend,
+          goals: goalTrend,
         },
       };
     });
 
-    return {
-      ...overview,
-      monthlyRevenue,
-    };
   }
 
-  async getRevenueByPlan(): Promise<{ plan: string; revenue: number; count: number }[]> {
-    const subscriptions = await prisma.subscription.groupBy({
-      by: ['plan'],
-      where: { status: 'ACTIVE' },
-      _count: { plan: true },
-    });
-
-    return subscriptions.map((s) => ({
-      plan: s.plan,
-      revenue: 0, // Computed from external billing service
-      count: s._count.plan,
-    }));
-  }
-
-  async getMonthlyRevenue(months: number = 12): Promise<{ month: string; revenue: number }[]> {
-    const result: { month: string; revenue: number }[] = [];
+  private async getSubscriberTrend(months = 12) {
+    const result: { month: string; count: number }[] = [];
 
     for (let i = months - 1; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
-      const monthStr = date.toISOString().slice(0, 7);
 
-      const count = await prisma.subscription.count({
+      const start = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        1,
+      );
+
+      const end = new Date(
+        date.getFullYear(),
+        date.getMonth() + 1,
+        1,
+      );
+
+      const count = await prisma.user.count({
         where: {
-          status: 'ACTIVE',
+          role: 'SUBSCRIBER',
           createdAt: {
-            lte: new Date(date.getFullYear(), date.getMonth() + 1, 0),
+            gte: start,
+            lt: end,
           },
         },
       });
 
       result.push({
-        month: monthStr,
-        revenue: count * 0, // Computed from external billing service
+        month: start.toISOString().slice(0, 7),
+        count,
       });
     }
 
     return result;
+
   }
 
-  async getAdvisorCapacity(): Promise<{ total: number; utilized: number; available: number }> {
-    const advisors = await prisma.advisor.findMany({
-      where: { deletedAt: null },
-      select: { maxClients: true, currentClients: true },
-    });
+  private async getSubscriptionTrend(months = 12) {
+    const result: { month: string; count: number }[] = [];
 
-    const total = advisors.reduce((sum, a) => sum + a.maxClients, 0);
-    const utilized = advisors.reduce((sum, a) => sum + a.currentClients, 0);
+    for (let i = months - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
 
-    return {
-      total,
-      utilized,
-      available: total - utilized,
-    };
+      const start = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        1,
+      );
+
+      const end = new Date(
+        date.getFullYear(),
+        date.getMonth() + 1,
+        1,
+      );
+
+      const count = await prisma.subscription.count({
+        where: {
+          createdAt: {
+            gte: start,
+            lt: end,
+          },
+        },
+      });
+
+      result.push({
+        month: start.toISOString().slice(0, 7),
+        count,
+      });
+    }
+
+    return result;
+
   }
 
-  async getGoalCompletionRate(): Promise<{ completed: number; total: number; rate: number }> {
-    const [total, completed] = await prisma.$transaction([
-      prisma.goal.count({ where: { deletedAt: null } }),
-      prisma.goal.count({ where: { status: 'COMPLETED', deletedAt: null } }),
-    ]);
+  private async getGoalTrend(months = 12) {
+    const result: { month: string; count: number }[] = [];
 
-    return {
-      completed,
-      total,
-      rate: total > 0 ? Math.round((completed / total) * 100) : 0,
-    };
+    for (let i = months - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+
+      const start = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        1,
+      );
+
+      const end = new Date(
+        date.getFullYear(),
+        date.getMonth() + 1,
+        1,
+      );
+
+      const count = await prisma.goal.count({
+        where: {
+          createdAt: {
+            gte: start,
+            lt: end,
+          },
+          deletedAt: null,
+        },
+      });
+
+      result.push({
+        month: start.toISOString().slice(0, 7),
+        count,
+      });
+    }
+
+    return result;
+
   }
 }
