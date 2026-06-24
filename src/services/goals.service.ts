@@ -1,16 +1,13 @@
 import { Goal } from '@prisma/client';
 import { GoalsRepository } from '../repositories/implementations/goals.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { NotFoundError } from '../helpers';
 import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class GoalsService {
   private readonly goalsRepository: GoalsRepository;
-  private readonly auditLogsRepository: AuditLogsRepository;
   constructor() {
     this.goalsRepository = new GoalsRepository();
-    this.auditLogsRepository = new AuditLogsRepository();
   }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Goal>> {
@@ -43,30 +40,12 @@ export class GoalsService {
 
   async create(data: Partial<Goal>, actorId: string): Promise<Goal> {
     const goal = await this.goalsRepository.create(data as any);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'GOAL_CREATED',
-      entityType: 'Goal',
-      entityId: goal.id,
-      newValues: { title: data.title } as any,
-    });
-
     return goal;
   }
 
   async update(id: string, data: Partial<Goal>, actorId: string): Promise<Goal> {
     await this.findById(id);
     const updated = await this.goalsRepository.update(id, data as any);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'GOAL_UPDATED',
-      entityType: 'Goal',
-      entityId: id,
-      newValues: data as any,
-    });
-
     return updated;
   }
 
@@ -82,30 +61,12 @@ export class GoalsService {
     }
 
     const updated = await this.goalsRepository.update(id, data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'GOAL_PROGRESS_UPDATED',
-      entityType: 'Goal',
-      entityId: id,
-      oldValues: { currentAmount: Number(goal.currentAmount) },
-      newValues: { currentAmount },
-    });
-
     return updated;
   }
 
   async softDelete(id: string, actorId: string): Promise<Goal> {
     await this.findById(id);
     const deleted = await this.goalsRepository.softDelete(id);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'GOAL_DELETED',
-      entityType: 'Goal',
-      entityId: id,
-    });
-
     return deleted;
   }
 }

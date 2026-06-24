@@ -78,14 +78,14 @@ export class AnalyticsRepository implements IAnalyticsRepository {
       const monthlyPlans = await tx.subscription.count({
         where: {
           status: 'ACTIVE',
-          billingInterval: 'MONTHLY',
+          billingInterval: 'month',
         },
       });
 
       const yearlyPlans = await tx.subscription.count({
         where: {
           status: 'ACTIVE',
-          billingInterval: 'YEARLY',
+          billingInterval: 'year',
         },
       });
 

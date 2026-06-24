@@ -2,7 +2,6 @@ import { Prisma, Subscription } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { ISubscriptionsRepository, SubscriptionWithUser } from '../interfaces/subscriptions.interface';
 import { INCLUDE_USER, INCLUDE_USER_ADVISOR } from '../../constants';
-import { UpdatePlanFeaturesInput } from '../../types';
 
 
 export class SubscriptionsRepository implements ISubscriptionsRepository {
@@ -44,7 +43,6 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
   }
 
   async findByAdvisor(advisorId: string): Promise<SubscriptionWithUser[]> {
-    // Find active assignments for the advisor, then get subscriptions with users
     const assignments = await prisma.subscriberAssignment.findMany({
       where: { advisorId, isActive: true },
       include: {
@@ -74,29 +72,5 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
 
   async update(id: string, data: Partial<Subscription>): Promise<Subscription> {
     return await prisma.subscription.update({ where: { id }, data: data as any });
-  }
-  async updatePlanFeatures(data: UpdatePlanFeaturesInput): Promise<void> {
-    const { productId, features, userId, billingInterval } = data;
-    return await prisma.$transaction(async (tx) => {
-      await tx.planFeature.deleteMany({
-        where: {
-          productId,
-          billingInterval,
-          plan: data.plan,
-        },
-      });
-
-      if (features.length > 0) {
-        await tx.planFeature.createMany({
-          data: features.map((feature: string, index: number) => ({
-            productId,
-            name: feature,
-            billingInterval,
-            plan: data.plan,
-            sortOrder: index,
-          })),
-        });
-      }
-    });
   }
 }

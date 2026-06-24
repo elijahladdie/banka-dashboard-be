@@ -53,11 +53,4 @@ export class SubscriptionsController {
     );
     ResponseHandler.success(res, subscription, 'Subscription canceled successfully.');
   }
-
-  async updateFeatures(req: AuthenticatedRequest, res: Response) {
-    const { productid } = req.params;
-    const { features, plan } = req.body;
-    const result = await this.subscriptionsService.updatePlanFeatures({ productId: productid, features, plan, userId: String(req.user!.userId), billingInterval: req.body.billingInterval });
-    ResponseHandler.success(res, result, 'Plan features updated successfully.');
-  }
 }

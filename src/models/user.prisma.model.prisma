@@ -16,8 +16,6 @@ model User {
   source                String?                @db.VarChar(50)
   advisor               Advisor?
   advisoryNotes         AdvisoryNote[]
-  auditLogs             AuditLog[]
-  reports               FinancialReport[]
   goals                 Goal[]
   meetingsAsSubscriber  Meeting[]              @relation("SubscriberMeetings")
   notifications         Notification[]

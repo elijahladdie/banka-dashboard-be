@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
 import { PaddleService } from '../services/paddle.service';
 import { ResponseHandler } from '../utils/response-handler';
-
-
 export class PaddleController {
   private readonly paddleService: PaddleService;
   constructor() {
@@ -30,10 +28,6 @@ export class PaddleController {
     await this.paddleService.handleWebhook(req);
   }
 
-  /**
-   * List completed transactions directly from Paddle.
-   * GET /paddle/transactions
-   */
   async getTransactions(req: Request, res: Response) {
     const { after, per_page, status } = req.query;
     const result = await this.paddleService.listTransactions({

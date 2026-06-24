@@ -2,17 +2,15 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthRepository } from '../repositories/implementations/auth.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import {
-  AuthTokens,
-  JwtPayload,
   SignUpInput,
   SignInInput,
   PaddleSignUpInput,
   PaddleSubscriptionUpdateInput,
   CompleteRegistrationInput,
   PendingRegistrationResult,
+  AuthenticatedRequest,
 } from '../types';
 import {
   ConflictError,
@@ -21,24 +19,19 @@ import {
   ValidationError,
 } from '../helpers';
 import { TOKEN } from '../constants';
-import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET } from '../utils/constants';
-import { ReportsRepository } from '../repositories/implementations/reports.repository';
-import { mergeSummary } from '../utils/paddle-mapper';
-import { SubscriptionStatus } from '@prisma/client';
+import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET, PLAN_NAME_MAP, SUBSCRIPTION_RANK } from '../utils/constants';
+import { sendRegistrationEmail, sendSubsPlanChangeEmail } from './email.service';
+import { generateTokens, normalizePaddleSubscription } from '../utils/helper';
 
 export class AuthService {
   private readonly authRepository: AuthRepository;
-  private readonly auditLogsRepository: AuditLogsRepository;
   private readonly subscriptionsRepository: SubscriptionsRepository;
-  private readonly reportsRepository: ReportsRepository;
   constructor() {
     this.authRepository = new AuthRepository();
-    this.auditLogsRepository = new AuditLogsRepository();
     this.subscriptionsRepository = new SubscriptionsRepository();
-    this.reportsRepository = new ReportsRepository();
   }
 
-  async signUp(input: SignUpInput): Promise<{ user: any; tokens: AuthTokens }> {
+  async signUp(input: SignUpInput): Promise<{ user: any; token: string }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
     if (existingUser) {
       throw new ConflictError('A user with this email already exists.');
@@ -55,20 +48,12 @@ export class AuthService {
       phoneNumber: input.phoneNumber,
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
-    await this.auditLogsRepository.create({
-      userId: user.id,
-      action: 'USER_SIGNED_UP',
-      entityType: 'User',
-      entityId: user.id,
-    });
-
+    const token = await generateTokens({ userId: user.id, email: user.email, role: user.role });
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, tokens };
+    return { user: userWithoutPassword, token: token };
   }
 
-  async signIn(input: SignInInput): Promise<{ user: any; tokens: AuthTokens }> {
+  async signIn(input: SignInInput): Promise<{ user: any; token: string }> {
     const user = await this.authRepository.findByEmail(input.email.toLowerCase());
     if (!user) {
       throw new UnauthorizedError('Invalid email or password.');
@@ -99,17 +84,9 @@ export class AuthService {
       lastLoginAt: new Date(),
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
-    await this.auditLogsRepository.create({
-      userId: user.id,
-      action: 'USER_SIGNED_IN',
-      entityType: 'User',
-      entityId: user.id,
-    });
-
+    const token = generateTokens({ userId: user.id, email: user.email, role: user.role });
     const { passwordHash: _, ...userWithoutPassword } = updatedUser;
-    return { user: userWithoutPassword, tokens };
+    return { user: userWithoutPassword, token };
   }
   async signUpFromPaddle(input: PaddleSignUpInput): Promise<{ user: any }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
@@ -150,15 +127,9 @@ export class AuthService {
       customerId: input.customerId || '',
       subscriptionId: input.subscriptionId || '',
     });
-
-    await this.auditLogsRepository.create({
-      userId: user.id,
-      action: 'USER_CREATED_FROM_PADDLE',
-      entityType: 'User',
-      entityId: user.id,
-      newValues: { source: 'paddle', email: input.email },
-    });
-
+    const token = generateTokens({ userId: user.id, email: user.email, role: user.role });
+    // Send welcome / registration email
+    await sendRegistrationEmail({ token, fullName: user.firstName, email: user.email, });
     const { passwordHash: _, ...userWithoutPassword } = user;
     return { user: userWithoutPassword };
   }
@@ -175,17 +146,9 @@ export class AuthService {
 
     const paddleEvent = input.paddleEvent;
 
-    const normalized =
-      this.normalizePaddleSubscription(paddleEvent);
+    const normalized = normalizePaddleSubscription(paddleEvent);
 
     const previousPlan = subscription.plan;
-
-    const isUpgrade =
-      previousPlan &&
-      previousPlan !== normalized.product;
-
-    const eventType =
-      this.resolveSubscriptionEvent(paddleEvent?.event_type);
 
     /**
      * 🧠 CRITICAL FIX:
@@ -217,130 +180,48 @@ export class AuthService {
 
     const user = await this.authRepository.findById(subscription.userId);
     if (!user) return null;
+    const newPlan = (normalized.product || '').toLowerCase();
 
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
+    const previousInterval =
+      subscription.billingInterval || 'month';
 
-    const isQuarterEnd =
-      (month === 3 && day === 31) ||
-      (month === 6 && day === 30) ||
-      (month === 9 && day === 30) ||
-      (month === 12 && day === 31);
+    const newInterval =
+      normalized.billingCycle || 'month';
 
-    const isYearEnd = month === 12 && day === 31;
+    const previousRank =
+      SUBSCRIPTION_RANK[`${previousPlan}:${previousInterval}`];
 
-    /**
-     * 📊 REPORTING LOGIC (unchanged but now accurate data)
-     */
-    if (isQuarterEnd) {
-      const quarter = Math.ceil(month / 3);
+    const newRank =
+      SUBSCRIPTION_RANK[`${newPlan}:${newInterval}`];
 
-      const title = `Q${quarter} Financial Summary ${now.getFullYear()}`;
+    const subscriptionChanged =
+      previousPlan !== newPlan ||
+      previousInterval !== newInterval;
 
-      const existing = await this.reportsRepository.findOne({
-        subscriber: { id: user.id },
-        reportType: 'QUARTERLY',
-        title,
+    if (subscriptionChanged) {
+      const isUpgrade = newRank > previousRank;
+
+      await sendSubsPlanChangeEmail({
+        email: user.email,
+        firstName: user.firstName,
+
+        previousPlan:
+          PLAN_NAME_MAP[previousPlan] || previousPlan,
+
+        newPlan:
+          PLAN_NAME_MAP[newPlan] || newPlan,
+
+        previousInterval,
+        newInterval,
+
+        isUpgrade,
       });
-
-      const summary = [
-        `Quarterly review Q${quarter}.`,
-        `Plan: ${normalized.product}.`,
-        `Amount: ${normalized.amount} ${normalized.currency}.`,
-        normalized.status ? `Status: ${normalized.status}.` : '',
-        isUpgrade
-          ? `Upgraded from ${previousPlan} to ${normalized.product}.`
-          : '',
-      ].filter(Boolean).join(' ');
-
-      if (existing) {
-        await this.reportsRepository.update(existing.id, {
-          summary: mergeSummary(existing.summary, [summary]),
-        });
-      } else {
-        await this.reportsRepository.create({
-          subscriber: { connect: { id: user.id } },
-          reportType: 'QUARTERLY',
-          title,
-          summary,
-        });
-      }
     }
 
-    if (isYearEnd) {
-      const title = `Annual Financial Report ${now.getFullYear()}`;
-
-      const existing = await this.reportsRepository.findOne({
-        subscriber: { id: user.id },
-        reportType: 'ANNUAL',
-        title,
-      });
-
-      const summary = [
-        `Annual subscription summary.`,
-        `Plan: ${normalized.product}.`,
-        `Amount: ${normalized.amount} ${normalized.currency}.`,
-        normalized.status ? `Status: ${normalized.status}.` : '',
-        isUpgrade ? `Upgraded during year.` : '',
-      ].filter(Boolean).join(' ');
-
-      if (existing) {
-        await this.reportsRepository.update(existing.id, {
-          summary: mergeSummary(existing.summary, [summary]),
-        });
-      } else {
-        await this.reportsRepository.create({
-          subscriber: { connect: { id: user.id } },
-          reportType: 'ANNUAL',
-          title,
-          summary,
-        });
-      }
-    }
-
-    /**
-     * 📌 ALWAYS CREATE MONTHLY EVENT LOG
-     */
-    await this.reportsRepository.create({
-      subscriber: { connect: { id: user.id } },
-      reportType: 'MONTHLY',
-      title: isUpgrade
-        ? `Subscription Upgrade - ${normalized.product}`
-        : `Subscription Payment - ${normalized.product}`,
-
-      summary: isUpgrade
-        ? `Upgraded from ${previousPlan} to ${normalized.product}. Paid ${normalized.amount} ${normalized.currency}.`
-        : `Payment received for ${normalized.product}. Amount: ${normalized.amount} ${normalized.currency}.`,
-    });
-
-    /**
-     * 📌 AUDIT LOG (now lifecycle-aware)
-     */
-    await this.auditLogsRepository.create({
-      userId: user.id,
-      action: eventType,
-
-      entityType: 'Subscription',
-      entityId: subscription.id,
-
-      newValues: {
-        plan: normalized.product,
-        amount: normalized.amount,
-        currency: normalized.currency,
-        status: normalized.status,
-        startsAt: normalized.startsAt?.toISOString() ?? null,
-        endsAt: normalized.endsAt?.toISOString() ?? null,
-        canceledAt: normalized.canceledAt?.toISOString() ?? null,
-        trialStart: normalized.trialStart?.toISOString() ?? null,
-        trialEnd: normalized.trialEnd?.toISOString() ?? null,
-        subscriptionId: input.subscriptionId,
-      }
-    });
 
     return user;
   }
-  async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; tokens: AuthTokens }> {
+  async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; token: string }> {
     const user = await this.authRepository.findByEmail(input.email);
     if (!user) {
       throw new NotFoundError('User');
@@ -360,21 +241,18 @@ export class AuthService {
       status: 'ACTIVE',
     });
 
-    const tokens = await this.generateTokens(updated.id, updated.email, updated.role);
-
-    await this.auditLogsRepository.create({
-      userId: updated.id,
-      action: 'REGISTRATION_COMPLETED',
-      entityType: 'User',
-      entityId: updated.id,
-    });
+    const token = generateTokens({ userId: updated.id, email: updated.email, role: updated.role });
 
     const { passwordHash: _, ...userWithoutPassword } = updated;
-    return { user: userWithoutPassword, tokens };
+    return { user: userWithoutPassword, token };
   }
 
-  async checkPendingRegistration(email: string): Promise<PendingRegistrationResult> {
-    const user = await this.authRepository.findByEmail(email.toLowerCase());
+  async checkPendingRegistration(token: string): Promise<PendingRegistrationResult> {
+    const decoded = jwt.verify(token, JWT_ACCESS_SECRET) as unknown as AuthenticatedRequest['user'];
+    if (!decoded || !decoded.email) {
+      throw new ValidationError('Invalid token.');
+    }
+    const user = await this.authRepository.findByEmail(decoded.email.toLowerCase());
     if (!user) {
       return { exists: false };
     }
@@ -387,38 +265,23 @@ export class AuthService {
     };
   }
 
-  async logout(userId: string): Promise<void> {
-    await this.auditLogsRepository.create({
-      userId,
-      action: 'USER_SIGNED_OUT',
-      entityType: 'User',
-      entityId: userId,
-    });
-  }
 
   async forgotPassword(email: string): Promise<{ resetToken: string }> {
     const user = await this.authRepository.findByEmail(email.toLowerCase());
     if (!user) {
-      // Don't reveal whether the email exists
       throw new ValidationError('If the email exists, a reset link has been sent.');
     }
 
     const resetToken = uuidv4();
     const resetTokenExpiry = new Date(Date.now() + TOKEN.RESET_TOKEN_EXPIRY);
 
-    await this.authRepository.updateUser(user.id, {
-      // In production, store reset token hash in a separate table
-    });
+    await this.authRepository.updateUser(user.id, {});
     return { resetToken };
   }
 
   async resetPassword(resetToken: string, newPassword: string): Promise<void> {
-    // In production, validate reset token from database
     const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(newPassword, salt);
-
-    // Find user by reset token and update password
-    // This is a simplified version - in production, store reset tokens in DB
   }
 
   async verifyEmail(userId: string): Promise<void> {
@@ -426,148 +289,5 @@ export class AuthService {
       emailVerified: true,
       status: 'ACTIVE',
     });
-
-    await this.auditLogsRepository.create({
-      userId,
-      action: 'EMAIL_VERIFIED',
-      entityType: 'User',
-      entityId: userId,
-    });
-  }
-
-  private async generateTokens(
-    userId: string,
-    email: string,
-    role: string
-  ): Promise<AuthTokens> {
-    const payload: JwtPayload = { userId, email, role };
-
-    const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
-    return { accessToken };
-  }
-  private normalizePaddleSubscription(paddleEvent: any) {
-    const data = paddleEvent?.data ?? {};
-    const details = data?.details ?? data;
-
-    const lineItem =
-      details?.line_items?.[0] ??
-      data?.items?.[0];
-
-    const product =
-      lineItem?.product?.name ??
-      lineItem?.price?.name ??
-      'ADVANCED';
-
-    const billingPeriod =
-      data?.billing_period ?? details?.current_billing_period ?? {};
-
-    const startsAt =
-      billingPeriod?.starts_at ??
-      details?.started_at ??
-      null;
-
-    const endsAt =
-      billingPeriod?.ends_at ??
-      data?.next_billed_at ??
-      null;
-
-    const canceledAt =
-      details?.canceled_at ??
-      data?.canceled_at ??
-      null;
-
-    const trialStart =
-      details?.trial_started_at ??
-      (details?.status === 'trialing' ? startsAt : null);
-
-    const trialEnd =
-      details?.trial_ends_at ??
-      null;
-
-    const currency =
-      details?.totals?.currency_code ??
-      data?.currency_code ??
-      'USD';
-
-    const amount =
-      Number(details?.totals?.grand_total ?? 0);
-
-    const status = mapPaddleStatus(
-      details?.status ?? data?.status ?? paddleEvent?.event_type
-    );
-
-    return {
-      product: product?.toUpperCase(),
-      currency,
-      amount,
-      status,
-      startsAt: startsAt ? new Date(startsAt) : null,
-      endsAt: endsAt ? new Date(endsAt) : null,
-      canceledAt: canceledAt ? new Date(canceledAt) : null,
-      trialStart: trialStart ? new Date(trialStart) : null,
-      trialEnd: trialEnd ? new Date(trialEnd) : null,
-      billingCycle: lineItem?.price?.billing_cycle ?? null,
-      collectionMode: data?.collection_mode ?? null,
-    };
-  }
-  private resolveSubscriptionEvent(eventType: string) {
-    switch (eventType) {
-      case 'transaction.completed':
-        return 'PAYMENT_RECEIVED';
-
-      case 'subscription.created':
-        return 'SUBSCRIPTION_CREATED';
-
-      case 'subscription.updated':
-        return 'SUBSCRIPTION_UPDATED';
-
-      case 'subscription.canceled':
-        return 'SUBSCRIPTION_CANCELED';
-
-      case 'subscription.paused':
-        return 'SUBSCRIPTION_PAUSED';
-
-      case 'subscription.resumed':
-        return 'SUBSCRIPTION_RESUMED';
-
-      case 'subscription.trialing':
-        return 'SUBSCRIPTION_TRIAL';
-
-      default:
-        return 'SUBSCRIPTION_UPDATED';
-    }
-  }
-
-}
-
-function mapPaddleStatus(status?: string): SubscriptionStatus {
-  const s = (status ?? "").toLowerCase();
-
-  switch (s) {
-    case "active":
-    case "completed":
-    case "paid":
-    case "succeeded":
-      return "ACTIVE";
-
-    case "past_due":
-    case "payment_failed":
-    case "unpaid":
-      return "PAST_DUE";
-
-    case "trialing":
-    case "trial":
-      return "TRIALING";
-
-    case "canceled":
-    case "cancelled":
-      return "CANCELED";
-
-    case "expired":
-    case "ended":
-      return "EXPIRED";
-
-    default:
-      return "ACTIVE"; // safe fallback
   }
 }

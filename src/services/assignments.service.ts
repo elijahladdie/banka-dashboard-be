@@ -1,7 +1,6 @@
 import { Prisma, SubscriberAssignment } from '@prisma/client';
 import { AssignmentsRepository } from '../repositories/implementations/assignments.repository';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { ConflictError, NotFoundError, ValidationError } from '../helpers';
 import { PaginatedResult, TUserSelect } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
@@ -12,16 +11,13 @@ export class AssignmentsService {
   private readonly assignmentsRepository: AssignmentsRepository;
   private readonly advisorsRepository: AdvisorsRepository;
   private readonly subsRepository: SubscriptionsRepository;
-  private readonly auditLogsRepository: AuditLogsRepository;
-  constructor() {
+    constructor() {
     this.assignmentsRepository = new AssignmentsRepository();
     this.advisorsRepository = new AdvisorsRepository();
     this.subsRepository = new SubscriptionsRepository();
-    this.auditLogsRepository = new AuditLogsRepository();
   }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<SubscriberAssignment>> {
-    logger.info('Finding assignments with query:', query);
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
@@ -108,14 +104,6 @@ export class AssignmentsService {
       currentClients: advisor.currentClients + 1,
     });
 
-    await this.auditLogsRepository.create({
-      userId: assignedBy,
-      action: 'ASSIGNMENT_CREATED',
-      entityType: 'SubscriberAssignment',
-      entityId: assignment.id,
-      newValues: { subscriberId, advisorId },
-    });
-
     return assignment;
   }
 
@@ -133,15 +121,6 @@ export class AssignmentsService {
         currentClients: Math.max(0, advisor.currentClients - 1),
       });
     }
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'ASSIGNMENT_ENDED',
-      entityType: 'SubscriberAssignment',
-      entityId: id,
-      oldValues: { isActive: true },
-      newValues: { isActive: false },
-    });
 
     return ended;
   }

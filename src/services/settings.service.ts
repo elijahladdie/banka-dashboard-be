@@ -1,16 +1,13 @@
 import bcrypt from 'bcryptjs';
 import { User } from '@prisma/client';
 import { SettingsRepository } from '../repositories/implementations/settings.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { NotFoundError, ValidationError } from '../helpers';
 import { BCRYPT_SALT_ROUNDS } from '../utils/constants';
 
 export class SettingsService {
   private readonly settingsRepository: SettingsRepository;
-  private readonly auditLogsRepository: AuditLogsRepository;
   constructor() {
     this.settingsRepository = new SettingsRepository();
-    this.auditLogsRepository = new AuditLogsRepository();
   }
 
   async getProfile(userId: string): Promise<User> {
@@ -23,15 +20,6 @@ export class SettingsService {
     const user = await this.getProfile(userId);
 
     const updated = await this.settingsRepository.updateProfile(userId, data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'PROFILE_UPDATED',
-      entityType: 'User',
-      entityId: userId,
-      oldValues: { firstName: user.firstName, lastName: user.lastName } as any,
-      newValues: data as any,
-    });
 
     return updated;
   }
@@ -53,12 +41,5 @@ export class SettingsService {
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
     await this.settingsRepository.updatePassword(userId, passwordHash);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'PASSWORD_CHANGED',
-      entityType: 'User',
-      entityId: userId,
-    });
   }
 }

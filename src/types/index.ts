@@ -1,7 +1,7 @@
-import { SubscriptionPlan, UserRole, UserStatus } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 import { Request } from 'express';
 
-export interface JwtPayload {
+interface JwtPayload {
   userId: string;
   email: string;
   role: string;
@@ -36,10 +36,6 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   stack?: string;
-}
-
-export interface AuthTokens {
-  accessToken: string;
 }
 
 export interface SignUpInput {
@@ -91,16 +87,6 @@ export interface ResetPasswordInput {
   password: string;
 }
 
-export interface AuditLogInput {
-  userId: string;
-  action: string;
-  entityType: string;
-  entityId?: string;
-  oldValues?: Record<string, any>;
-  newValues?: Record<string, any>;
-  ipAddress?: string;
-  userAgent?: string;
-}
 export interface TUserSelect {
   id: string,
   firstName: string,
@@ -178,10 +164,7 @@ export interface PaddleProductQuery {
   type?: 'custom' | 'standard';
 }
 
-export interface UpdatePlanFeaturesInput {
-  productId: string;
-  features: string[];
-  userId: string;
-  plan: SubscriptionPlan;
-  billingInterval: 'MONTHLY' | 'YEARLY';
+export interface WebhookResult {
+  handled: boolean;
+  reason?: string;
 }

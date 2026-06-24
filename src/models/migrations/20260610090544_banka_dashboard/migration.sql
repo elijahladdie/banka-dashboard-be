@@ -11,7 +11,7 @@ CREATE TYPE "SubscriptionPlan" AS ENUM ('STARTER', 'PRO', 'ADVANCED');
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'PAST_DUE', 'TRIALING', 'CANCELED', 'EXPIRED');
 
 -- CreateEnum
-CREATE TYPE "BillingInterval" AS ENUM ('MONTHLY', 'YEARLY');
+CREATE TYPE "BillingInterval" AS ENUM ('month', 'year');
 
 -- CreateEnum
 CREATE TYPE "GoalStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED');
@@ -62,7 +62,7 @@ CREATE TABLE "subscriptions" (
     "userId" UUID NOT NULL,
     "plan" "SubscriptionPlan" NOT NULL DEFAULT 'STARTER',
     "status" "SubscriptionStatus" NOT NULL DEFAULT 'TRIALING',
-    "billingInterval" "BillingInterval" NOT NULL DEFAULT 'MONTHLY',
+    "billingInterval" "BillingInterval" NOT NULL DEFAULT 'month',
     "customerId" VARCHAR(255),
     "subscriptionId" VARCHAR(255),
     "startsAt" TIMESTAMPTZ,

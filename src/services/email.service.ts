@@ -1,27 +1,8 @@
-/**
- * Email Service for Banka
- *
- * Sends transactional emails via nodemailer (SMTP).
- * In development, emails are logged to console unless SMTP is configured.
- * In production, configure SMTP_* env vars or swap in a provider like Resend/SendGrid.
- */
-
-import nodemailer from 'nodemailer';
+import nodemailer, { SendMailOptions } from 'nodemailer';
 import { Address } from 'nodemailer/lib/mailer';
 import { NODE_ENV, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, DASHBOARD_URL } from '../utils/constants';
 import logger from '../utils/logger';
 
-interface SendEmailOptions {
-  to: string;
-  subject: string;
-  text?: string;
-  html?: string;
-}
-
-/**
- * Create a nodemailer transporter from environment config.
- * Falls back to a logger-only transport when SMTP is not configured.
- */
 function createTransporter(): nodemailer.Transporter {
   const host = SMTP_HOST;
   const port = SMTP_PORT;
@@ -37,12 +18,11 @@ function createTransporter(): nodemailer.Transporter {
     });
   }
 
-  // Fallback: log to console in development
   if (NODE_ENV !== 'production') {
     logger.warn('[email] SMTP not configured — emails will be logged to console only.');
     return {
       sendMail: async (opts: any) => {
-        logger.info('[email] 📬 Would send email:', JSON.stringify(opts, null, 2));
+        logger.info('[email] Would send email:', JSON.stringify(opts, null, 2));
         return { messageId: `log-${Date.now()}` };
       },
     } as unknown as nodemailer.Transporter;
@@ -55,9 +35,7 @@ const transporter = createTransporter();
 
 const FROM_ADDRESS: Address = { address: SMTP_FROM || 'noreply@banka.rw', name: 'Banka' };
 
-/**
- * Build the registration-completion email HTML.
- */
+
 function buildRegistrationEmailHtml(fullName: string, completionUrl: string): string {
   return `
 <!DOCTYPE html>
@@ -135,15 +113,20 @@ function buildRegistrationEmailHtml(fullName: string, completionUrl: string): st
 /**
  * Send a registration-completion email with a link to set password and finish signup.
  */
-export async function sendRegistrationEmail(
-  email: string,
-  fullName: string,
-): Promise<void> {
+type RegistrationEmailOptions = {
+  email: string;
+  token: string;
+  fullName: string;
+};
+export async function sendRegistrationEmail({
+  token,
+  fullName, email
+}: RegistrationEmailOptions): Promise<void> {
   const dashboardUrl = DASHBOARD_URL;
 
   const completionUrl = new URL('/auth/signup', dashboardUrl);
   completionUrl.searchParams.set('source', 'paddle');
-  completionUrl.searchParams.set('email', email);
+  completionUrl.searchParams.set('token', token);
 
   const html = buildRegistrationEmailHtml(fullName, completionUrl.toString());
   const text = [
@@ -168,10 +151,7 @@ export async function sendRegistrationEmail(
   });
 }
 
-/**
- * Generic email sender — useful for future transactional emails.
- */
-export async function sendEmail(options: SendEmailOptions): Promise<void> {
+export async function sendEmail(options: SendMailOptions): Promise<void> {
   await transporter.sendMail({
     from: FROM_ADDRESS,
     to: options.to,
@@ -180,24 +160,115 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     html: options.html,
   });
 }
-export async function sendSubsUpgradeEmail({
+export async function sendSubsPlanChangeEmail({
   email,
   firstName,
   previousPlan,
   newPlan,
-  amount,
-  currency
+  isUpgrade,
+  previousInterval,
+  newInterval,
+
 }: {
   email: string;
   firstName: string;
   previousPlan: string;
   newPlan: string;
-  amount: number;
-  currency: string;
+  previousInterval: string;
+  newInterval: string;
+  isUpgrade: boolean;
 }): Promise<void> {
-  const subject = 'Your Banka Subscription Has Been Upgraded';
-  const text = `Hi ${firstName},\n\nYour subscription has been successfully upgraded from ${previousPlan} to the new plan. Thank you for choosing Banka!\n\n— Banka Team`;
-  const html = `<p>Hi ${firstName},</p><p>Your subscription has been successfully upgraded from <strong>${previousPlan}</strong> to the new plan. Thank you for choosing Banka!</p><p>— Banka Team</p>`;
+  const subject = isUpgrade
+    ? 'Your Banka Subscription Has Been Upgraded'
+    : 'Your Banka Subscription Has Been Downgraded';
 
-  await sendEmail({ to: email, subject, text, html });
+  const billingNote =
+    'Since you changed plans during an active billing cycle, any prorated credits or charges have been applied automatically. Future renewals will be billed at the standard rate of your new plan.';
+
+  const text = isUpgrade
+    ? `Hi ${firstName},
+
+Great news! Your subscription has been successfully upgraded from ${previousPlan} - ${previousInterval} to ${newPlan} - ${newInterval}.
+
+You now have immediate access to all features included in your new plan.
+
+Billing update: ${billingNote}
+
+Thank you for choosing Banka.
+
+— The Banka Team`
+    : `Hi ${firstName},
+
+Your subscription has been changed from ${previousPlan} - ${previousInterval} to ${newPlan} - ${newInterval}.
+
+Your account has been successfully downgraded and your new plan is now active.
+
+Billing update: ${billingNote}
+
+Thank you for choosing Banka.
+
+— The Banka Team`;
+
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6; color: #333;">
+      <p>Hi ${firstName},</p>
+
+      ${isUpgrade
+      ? `
+            <p>
+              Great news! Your subscription has been successfully upgraded from
+              <strong>${previousPlan}</strong> to
+              <strong>${newPlan}</strong>.
+            </p>
+
+            <p>
+              You now have immediate access to all features included in your new plan.
+            </p>
+          `
+      : `
+            <p>
+              Your subscription has been changed from
+              <strong>${previousPlan} - ${previousInterval}</strong> to
+              <strong>${newPlan} - ${newInterval}</strong>.
+            </p>
+
+            <p>
+              Your account has been successfully downgraded and your new plan is now active.
+            </p>
+          `
+    }
+
+      <div
+        style="
+          margin: 24px 0;
+          padding: 16px;
+          background-color: #f8f9fa;
+          border-left: 4px solid #d4af37;
+          border-radius: 4px;
+        "
+      >
+        <strong>Billing Update</strong>
+        <p style="margin: 8px 0 0;">
+          Since you changed plans during an active billing cycle, any prorated
+          credits or charges have been applied automatically. Future renewals
+          will be billed at the standard rate of your new plan.
+        </p>
+      </div>
+
+      <p>Thank you for choosing Banka.</p>
+
+      <p>
+        Best regards,<br />
+        <strong>The Banka Team</strong>
+      </p>
+    </div>
+  `;
+
+  await sendEmail({
+    to: email,
+    subject,
+    text,
+    html,
+  });
 }
+

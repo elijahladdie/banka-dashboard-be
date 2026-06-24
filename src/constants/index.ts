@@ -34,7 +34,7 @@ export const GOAL_STATUS = {
 } as const;
 
 export const REPORT_TYPE = {
-  MONTHLY: 'MONTHLY',
+  month: 'month',
   QUARTERLY: 'QUARTERLY',
   ANNUAL: 'ANNUAL',
   CUSTOM: 'CUSTOM',
@@ -56,8 +56,8 @@ export const NOTIFICATION_TYPE = {
 } as const;
 
 export const BILLING_INTERVAL = {
-  MONTHLY: 'MONTHLY',
-  YEARLY: 'YEARLY',
+  month: 'month',
+  year: 'year',
 } as const;
 
 export const PERMISSIONS = {
@@ -91,12 +91,6 @@ export const PERMISSIONS = {
   GOALS_UPDATE: 'goals:update',
   GOALS_DELETE: 'goals:delete',
 
-  // Report management
-  REPORTS_READ: 'reports:read',
-  REPORTS_CREATE: 'reports:create',
-  REPORTS_UPDATE: 'reports:update',
-  REPORTS_DELETE: 'reports:delete',
-
   // Meeting management
   MEETINGS_READ: 'meetings:read',
   MEETINGS_CREATE: 'meetings:create',
@@ -111,10 +105,6 @@ export const PERMISSIONS = {
 
   // Analytics
   ANALYTICS_READ: 'analytics:read',
-
-  // Audit logs
-  AUDIT_LOGS_READ: 'audit-logs:read',
-
   // Settings
   SETTINGS_READ: 'settings:read',
   SETTINGS_UPDATE: 'settings:update',
@@ -133,7 +123,6 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.ASSIGNMENTS_UPDATE,
     PERMISSIONS.SUBSCRIPTIONS_READ,
     PERMISSIONS.SUBSCRIPTIONS_UPDATE,
-    PERMISSIONS.REPORTS_READ,
     PERMISSIONS.ANALYTICS_READ,
     PERMISSIONS.NOTIFICATIONS_READ,
     PERMISSIONS.NOTIFICATIONS_CREATE,
@@ -144,8 +133,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.GOALS_READ,
     PERMISSIONS.GOALS_CREATE,
     PERMISSIONS.GOALS_UPDATE,
-    PERMISSIONS.REPORTS_READ,
-    PERMISSIONS.REPORTS_CREATE,
+
     PERMISSIONS.MEETINGS_READ,
     PERMISSIONS.MEETINGS_CREATE,
     PERMISSIONS.MEETINGS_UPDATE,
@@ -159,7 +147,6 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.GOALS_READ,
     PERMISSIONS.GOALS_CREATE,
     PERMISSIONS.GOALS_UPDATE,
-    PERMISSIONS.REPORTS_READ,
     PERMISSIONS.MEETINGS_READ,
     PERMISSIONS.NOTIFICATIONS_READ,
     PERMISSIONS.SUBSCRIPTIONS_READ,

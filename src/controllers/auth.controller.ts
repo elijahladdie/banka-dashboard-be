@@ -10,8 +10,8 @@ export class AuthController {
   }
 
   async signUp(req: Request, res: Response) {
-    const { user, tokens } = await this.authService.signUp(req.body);
-    ResponseHandler.success(res, { user, tokens }, 'Account created successfully.', 100, 201);
+    const { user, token } = await this.authService.signUp(req.body);
+    ResponseHandler.success(res, { user, token }, 'Account created successfully.', 100, 201);
   }
 
   async signUpFromPaddle(req: Request, res: Response) {
@@ -20,24 +20,19 @@ export class AuthController {
   }
 
   async completeRegistration(req: Request, res: Response) {
-    const { user, tokens } = await this.authService.completeRegistration(req.body);
-    ResponseHandler.success(res, { user, tokens }, 'Registration completed successfully.');
+    const { user, token } = await this.authService.completeRegistration(req.body);
+    ResponseHandler.success(res, { user, token }, 'Registration completed successfully.');
   }
 
   async checkPendingRegistration(req: Request, res: Response) {
-    const result = await this.authService.checkPendingRegistration(req.query.email as string);
+    const result = await this.authService.checkPendingRegistration(req.query.token as string);
     ResponseHandler.success(res, result, 'Pending registration check completed.');
   }
 
   async signIn(req: Request, res: Response) {
-    const { user, tokens } = await this.authService.signIn(req.body);
-    ResponseHandler.success(res, { user, tokens }, 'Signed in successfully.');
+    const { user, token } = await this.authService.signIn(req.body);
+    ResponseHandler.success(res, { user, token }, 'Signed in successfully.');
   }
-  async logout(req: AuthenticatedRequest, res: Response) {
-    await this.authService.logout(req.user!.userId);
-    ResponseHandler.success(res, null, 'Signed out successfully.');
-  }
-
   async forgotPassword(req: Request, res: Response) {
     const { resetToken } = await this.authService.forgotPassword(req.body.email);
     ResponseHandler.success(res, { resetToken }, 'If the email exists, a reset link has been sent.');

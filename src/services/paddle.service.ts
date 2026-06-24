@@ -1,10 +1,9 @@
 import { Request } from 'express';
 import axios, { AxiosInstance } from 'axios';
-import { ForbiddenError, ServerError, UnauthorizedError } from '../helpers';
-import { PADDLE_ENV, PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET, PLAN_NAME_MAP } from '../utils/constants';
-import prisma from '../utils/prisma';
+import { ForbiddenError, ServerError, UnauthorizedError, verifyPaddleSignature } from '../helpers';
+import { PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET, PLAN_NAME_MAP, PLAN_FEATURES, PADDLE_URL } from '../utils/constants';
 import { mapPaddleProductsResponse } from '../utils/paddle-mapper';
-import { processPaddleWebhook, verifyPaddleSignature } from '../utils/paddle-webhook';
+import { processPaddleWebhook, } from '../utils/paddle-webhook';
 import logger from '../utils/logger';
 import { PaddleProductQuery } from '../types';
 
@@ -13,11 +12,7 @@ export class PaddleService {
   private readonly api: AxiosInstance;
 
   constructor() {
-    const baseURL =
-      PADDLE_ENV === 'sandbox'
-        ? 'https://sandbox-api.paddle.com'
-        : 'https://api.paddle.com';
-
+    const baseURL = PADDLE_URL
     this.api = axios.create({
       baseURL,
       headers: {
@@ -48,67 +43,89 @@ export class PaddleService {
     }
   }
 
+  async findCustomer(customerId: string) {
+    try {
+      const { data } = await this.api.get(
+        `/customers/${customerId}`
+      );
+
+      return data?.data ?? null;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+
+      throw this.handlePaddleError(
+        error,
+        `Failed to fetch Paddle customer ${customerId}`
+      );
+    }
+  }
+
+
+
   async listProductsWithPrices(query: PaddleProductQuery = {}) {
     const { interval = 'year' } = query;
-    const [result, dbFeatures] = await Promise.all([
-      this.listProducts({ ...query, include: ['prices'] }),
-      prisma.planFeature.findMany({
-        orderBy: [
-          { plan: 'asc' },
-          { billingInterval: 'asc' },
-          { sortOrder: 'asc' },
-        ],
-      }),
-    ])
+
+    const result = await this.listProducts({
+      ...query,
+      include: ['prices'],
+    });
 
     const mapped = mapPaddleProductsResponse(result);
 
-    const featuresByPlan = new Map<
-      string,
-      {
-        monthly: string[];
-        yearly: string[];
+    const starterPlan = PLAN_FEATURES.find(
+      plan => plan.name.toLowerCase() === 'starter'
+    );
+
+    const proPlan = PLAN_FEATURES.find(
+      plan => plan.name.toLowerCase() === 'pro'
+    );
+
+    const advancedPlan = PLAN_FEATURES.find(
+      plan => plan.name.toLowerCase() === 'advanced'
+    );
+
+    const getPlanFeatures = (planKey?: string) => {
+      switch (planKey?.toUpperCase()) {
+        case 'STARTER':
+          return starterPlan?.features ?? [];
+
+
+        case 'PRO':
+          return [
+            ...(proPlan?.subtitle ? [proPlan?.subtitle] : []),
+            ...(proPlan?.features ?? []),
+          ];
+
+        case 'ADVANCED':
+          return [
+            ...(advancedPlan?.subtitle ? [advancedPlan?.subtitle] : []),
+            ...(advancedPlan?.features ?? []),
+          ];
+
+        default:
+          return [];
       }
-    >();
 
-    for (const feature of dbFeatures) {
-      if (feature.category === 'target_customer') continue;
 
-      const key = feature.plan;
+    };
 
-      if (!featuresByPlan.has(key)) {
-        featuresByPlan.set(key, {
-          monthly: [],
-          yearly: [],
-        });
-      }
-
-      const entry = featuresByPlan.get(key)!;
-
-      if (feature.billingInterval === 'YEARLY') {
-        entry.yearly.push(feature.name);
-      } else {
-        entry.monthly.push(feature.name);
-      }
-    }
-
-    const products = (mapped?.data || [])
+    return (mapped?.data || [])
       .map((product: any) => {
         const planKey =
           PLAN_NAME_MAP[product.customData?.plan?.toLowerCase()] ||
           PLAN_NAME_MAP[product.name?.toLowerCase()];
 
+
         const selectedPrice = (product.prices || []).find(
-          (price: any) => price.billingCycle?.interval === interval
+          (price: any) =>
+            price.billingCycle?.interval === interval
         );
 
         if (!selectedPrice) {
           return null;
         }
-
-        const planFeatures = planKey
-          ? featuresByPlan.get(planKey)
-          : undefined;
 
         return {
           id: product.id,
@@ -121,21 +138,18 @@ export class PaddleService {
           status: product.status,
 
           billingInterval: interval,
+          prices: [selectedPrice],
 
-          prices: [{ ...selectedPrice }],
-
-          features:
-            interval === 'year'
-              ? planFeatures?.yearly ?? []
-              : planFeatures?.monthly ?? [],
+          features: getPlanFeatures(planKey),
 
           createdAt: product.createdAt,
           updatedAt: product.updatedAt,
         };
       })
       .filter(Boolean);
-    return products;
   }
+
+
   async handleWebhook(req: Request) {
 
     const rawBody: string = (req as any).rawBody || '';
@@ -176,6 +190,7 @@ export class PaddleService {
       throw this.handlePaddleError(error, 'Failed to fetch transactions from Paddle');
     }
   }
+
 
 
   private handlePaddleError(error: any, fallbackMessage: string): never {

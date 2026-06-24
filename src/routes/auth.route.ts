@@ -27,7 +27,6 @@ router.post('/forgot-password', authRateLimiter, validateRequest(forgotPasswordS
 router.post('/reset-password', authRateLimiter, validateRequest(resetPasswordSchema), asyncWrapper(authController.resetPassword.bind(authController)));
 
 // Protected routes
-router.post('/logout', jwtAuthGuard, asyncWrapper(authController.logout.bind(authController)));
 router.post('/verify-email', jwtAuthGuard, asyncWrapper(authController.verifyEmail.bind(authController)));
 router.get('/me', jwtAuthGuard, asyncWrapper(authController.getMe.bind(authController)));
 

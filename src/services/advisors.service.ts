@@ -1,16 +1,14 @@
 import { Advisor, User } from '@prisma/client';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { ConflictError, NotFoundError, } from '../helpers';
 import { PaginatedResult, TUserSelect } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class AdvisorsService {
   private readonly advisorsRepository: AdvisorsRepository;
-  private readonly auditLogsRepository: AuditLogsRepository;
   constructor() {
     this.advisorsRepository = new AdvisorsRepository();
-    this.auditLogsRepository = new AuditLogsRepository();
+
   }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Advisor & { user: User }>> {
@@ -59,43 +57,18 @@ export class AdvisorsService {
       isAvailable: true,
     });
 
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'ADVISOR_CREATED',
-      entityType: 'Advisor',
-      entityId: advisor.id,
-      newValues: data,
-    });
-
     return advisor;
   }
 
   async update(id: string, data: Partial<Advisor>, actorId: string): Promise<Advisor> {
     await this.findById(id);
     const updated = await this.advisorsRepository.update(id, data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'ADVISOR_UPDATED',
-      entityType: 'Advisor',
-      entityId: id,
-      newValues: data as any,
-    });
-
     return updated;
   }
 
   async softDelete(id: string, actorId: string): Promise<Advisor> {
     await this.findById(id);
     const deleted = await this.advisorsRepository.softDelete(id);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'ADVISOR_DELETED',
-      entityType: 'Advisor',
-      entityId: id,
-    });
-
     return deleted;
   }
 

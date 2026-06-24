@@ -5,6 +5,8 @@ model Meeting {
   title        String        @db.VarChar(255)
   description  String?
   meetingDate  DateTime      @db.Timestamptz(6)
+  starts_at    DateTime?
+  ends_at      DateTime?
   status       MeetingStatus @default(SCHEDULED)
   meetingLink  String?
   createdAt    DateTime      @default(now()) @db.Timestamptz(6)

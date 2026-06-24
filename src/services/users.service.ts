@@ -1,6 +1,5 @@
 import { User } from '@prisma/client';
 import { UsersRepository } from '../repositories/implementations/users.repository';
-import { AuditLogsRepository } from '../repositories/implementations/audit-logs.repository';
 import { NotFoundError } from '../helpers';
 import { PaginatedResult, PaginationParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
@@ -8,10 +7,8 @@ import logger from '../utils/logger';
 
 export class UsersService {
   private readonly usersRepository: UsersRepository;
-  private readonly auditLogsRepository: AuditLogsRepository;
   constructor() {
     this.usersRepository = new UsersRepository();
-    this.auditLogsRepository = new AuditLogsRepository();
   }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<User>> {
@@ -45,16 +42,6 @@ export class UsersService {
     const user = await this.findById(id);
 
     const updated = await this.usersRepository.update(id, data);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'USER_UPDATED',
-      entityType: 'User',
-      entityId: id,
-      oldValues: { role: user.role, status: user.status } as any,
-      newValues: data as any,
-    });
-
     return updated;
   }
 
@@ -62,15 +49,6 @@ export class UsersService {
     const user = await this.findById(id);
 
     const deleted = await this.usersRepository.softDelete(id);
-
-    await this.auditLogsRepository.create({
-      userId: actorId,
-      action: 'USER_DELETED',
-      entityType: 'User',
-      entityId: id,
-      oldValues: { status: user.status } as any,
-      newValues: { status: 'INACTIVE', deletedAt: new Date().toISOString() },
-    });
 
     return deleted;
   }
