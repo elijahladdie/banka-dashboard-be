@@ -1,13 +1,18 @@
-import { Subscription } from '@prisma/client';
+import { Prisma, Subscription } from '@prisma/client';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { NotFoundError } from '../helpers';
 import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { PaddleService } from './paddle.service';
 
 export class SubscriptionsService {
   private readonly subscriptionsRepository: SubscriptionsRepository;
+  private readonly paddleService: PaddleService;
+
   constructor() {
     this.subscriptionsRepository = new SubscriptionsRepository();
+    this.paddleService = new PaddleService();
+
   }
 
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Subscription>> {
@@ -38,10 +43,18 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async update(id: string, data: Partial<Subscription>, actorId: string): Promise<Subscription> {
-    await this.findById(id);
-    const updated = await this.subscriptionsRepository.update(id, data);
-    return updated;
+  async update(id: string, data: Prisma.SubscriptionUpdateInput & { priceId?: string }): Promise<Subscription> {
+    const subscription = await this.findById(id);
+    // call paddle and update subscription plan if priceId is provided
+    const { priceId, ...rest } = data;
+    if (priceId) {
+      await this.paddleService.updateSubscription(String(subscription.subscriptionId), priceId || '');
+    }
+    if (Object.keys(rest).length > 0) {
+      const updated = await this.subscriptionsRepository.update(id, rest);
+      return updated;
+    }
+    return await this.findById(id);
   }
 
   async cancelSubscription(id: string, actorId: string): Promise<Subscription> {

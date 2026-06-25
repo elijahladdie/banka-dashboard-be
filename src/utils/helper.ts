@@ -55,7 +55,6 @@ export const normalizePaddleSubscription = (paddleEvent: any) => {
     const status = mapPaddleStatus(
         details?.status ?? data?.status ?? paddleEvent?.event_type
     );
-
     return {
         product: product?.toUpperCase(),
         currency,

@@ -149,6 +149,35 @@ export class PaddleService {
       .filter(Boolean);
   }
 
+  async updateSubscription(
+    subscriptionId: string,
+    priceId: string
+  ) {
+    console.log(`Updating subscription ${subscriptionId} to price ${priceId}`);
+    try {
+      const { data } = await this.api.patch(
+        `/subscriptions/${subscriptionId}`,
+        {
+          items: [
+            {
+              price_id: priceId,
+              quantity: 1,
+            },
+          ],
+          proration_billing_mode: "prorated_immediately",
+        }
+      );
+
+      return data;
+    } catch (error: any) {
+      console.error('Error updating subscription:', error.response.data);
+      throw this.handlePaddleError(
+        error,
+        "Failed to update subscription"
+      );
+    }
+  }
+
 
   async handleWebhook(req: Request) {
 

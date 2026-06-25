@@ -5,6 +5,9 @@ import { INCLUDE_USER, INCLUDE_USER_ADVISOR } from '../../constants';
 
 
 export class SubscriptionsRepository implements ISubscriptionsRepository {
+  upsertCustomer(id: string, arg1: { customerId: any; }) {
+    throw new Error('Method not implemented.');
+  }
   async findOne(where: Prisma.SubscriptionWhereInput): Promise<SubscriptionWithUser | null> {
     return await prisma.subscription.findFirst({
       where,
@@ -70,7 +73,7 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     return await prisma.subscription.create({ data: data as any });
   }
 
-  async update(id: string, data: Partial<Subscription>): Promise<Subscription> {
-    return await prisma.subscription.update({ where: { id }, data: data as any });
+  async update(id: string, data: Prisma.SubscriptionUpdateInput): Promise<Subscription> {
+    return await prisma.subscription.update({ where: { id }, data });
   }
 }

@@ -12,5 +12,5 @@ export interface ISubscriptionsRepository {
   }): Promise<[SubscriptionWithUser[], number]>;
   findActiveSubscriptions(): Promise<SubscriptionWithUser[]>;
   create(data: Partial<Subscription>): Promise<Subscription>;
-  update(id: string, data: Partial<Subscription>): Promise<Subscription>;
+  update(id: string, data: Prisma.SubscriptionUpdateInput): Promise<Subscription>;
 }

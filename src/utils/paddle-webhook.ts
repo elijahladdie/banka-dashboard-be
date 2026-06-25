@@ -25,7 +25,7 @@ function markEventProcessed(eventId: string): void {
 
 
 // ============================================================
-// AuthService lazy singleton
+// lazy singleton
 // ============================================================
 
 let _authService: AuthService | null = null;
@@ -47,12 +47,11 @@ function getPaddleService(): PaddleService {
 
 const HANDLED_EVENT_TYPES = new Set([
   'customer.created',
-  'transaction.completed',
+  "subscription.created",
+  "subscription.updated",
+  "subscription.canceled",
+  "transaction.completed",
 ]);
-
-// ============================================================
-// Event processing
-// ============================================================
 
 function extractCustomerInfo(event: Record<string, any>): {
   email?: string;
@@ -92,100 +91,172 @@ function extractCustomerInfo(event: Record<string, any>): {
 
 const latestEventPerEmail = new Map<string, string>();
 
-export async function processPaddleWebhook(event: Record<string, any>): Promise<WebhookResult> {
+export async function processPaddleWebhook(
+  event: Record<string, any>
+): Promise<WebhookResult> {
   const eventType = event.event_type;
-  const eventId = event.event_id || '';
-  const occurredAt = event.occurred_at || '';
+  const eventId = event.event_id || "";
+  const occurredAt = event.occurred_at || "";
 
   if (!HANDLED_EVENT_TYPES.has(eventType)) {
-    return { handled: false, reason: `Unhandled event type: ${eventType}` };
+    return {
+      handled: false,
+      reason: `Unhandled event type: ${eventType}`,
+    };
   }
 
   if (eventId && hasProcessedEvent(eventId)) {
-    return { handled: true, reason: `Duplicate event skipped: ${eventId}` };
+    return {
+      handled: true,
+      reason: `Duplicate event skipped: ${eventId}`,
+    };
   }
 
-  const { email, fullName, customerId, subscriptionId } = extractCustomerInfo(event);
-  if (eventType === 'customer.created') {
+  const {
+    email,
+    fullName,
+    customerId,
+    subscriptionId,
+  } = extractCustomerInfo(event);
+
+  const authService = getAuthService();
+  const paddleService = getPaddleService();
+
+  if (eventType === "customer.created") {
     if (!email) {
-      return { handled: false, reason: 'No customer email found in customer.created event' };
+      return {
+        handled: false,
+        reason: "Missing email in customer.created",
+      };
     }
 
-
-    if (eventId) markEventProcessed(eventId);
+    markEventProcessed(eventId);
 
     try {
-      const authService = getAuthService();
       await authService.signUpFromPaddle({
         email,
-        fullName: fullName || email.split('@')[0],
-        source: 'paddle',
-        subscriptionId: '',
-        customerId: customerId || '',
+        fullName: fullName || email.split("@")[0],
+        customerId: customerId || "",
+        subscriptionId: "",
+        source: "paddle",
       });
 
-
       return { handled: true };
-    } catch (error: any) {
-      return { handled: false, reason: error.message };
+    } catch (err: any) {
+      return { handled: false, reason: err.message };
     }
   }
 
   if (!customerId) {
-    return { handled: false, reason: `No customer_id in ${eventType} event` };
+    return {
+      handled: false,
+      reason: `Missing customerId in ${eventType}`,
+    };
   }
 
   if (occurredAt) {
-    const lastOccurredAt = latestEventPerEmail.get(customerId);
-    if (lastOccurredAt && occurredAt < lastOccurredAt) {
+    const last = latestEventPerEmail.get(customerId);
+
+    if (last && occurredAt < last) {
       logger.info(
-        `[paddle-webhook] Skipping stale event ${eventId} (${occurredAt}) for customer ${customerId}; last seen ${lastOccurredAt}`,
+        `[paddle-webhook] Stale event ignored ${eventId}`
       );
-      return { handled: false, reason: `Stale event skipped (occurred_at: ${occurredAt} < ${lastOccurredAt})` };
+
+      return {
+        handled: false,
+        reason: "stale event ignored",
+      };
     }
+
     latestEventPerEmail.set(customerId, occurredAt);
   }
-
   if (eventId) markEventProcessed(eventId);
+  if (eventType === "subscription.created") {
+    try {
+      await authService.syncSubscriptionFromPaddle({
+        customerId,
+        subscriptionId: subscriptionId || "",
+        event,
+      });
 
-  try {
-    const authService = getAuthService();
-    const user = await authService.updateSubscriptionFromPaddle({
-      customerId,
-      subscriptionId: subscriptionId || '',
-      paddleEvent: event,
-    });
+      return { handled: true };
+    } catch (err: any) {
+      return { handled: false, reason: err.message };
+    }
+  }
 
-    if (!user) {
-      const paddleService = getPaddleService();
-      const customer =
-        await paddleService.findCustomer(customerId);
+  if (eventType === "subscription.updated") {
+    try {
+      const user =
+        await authService.updateSubscriptionFromPaddle({
+          customerId,
+          subscriptionId: subscriptionId || "",
+          paddleEvent: event,
+        });
 
-      if (!customer?.email) {
-        return {
-          handled: false,
-          reason: `Unable to resolve customer ${customerId}`,
-        };
+      // fallback if user not found
+      if (!user) {
+        const customer =
+          await paddleService.findCustomer(customerId);
+
+        if (!customer?.email) {
+          return {
+            handled: false,
+            reason: "Customer not resolvable",
+          };
+        }
+
+        await authService.signUpFromPaddle({
+          email: customer.email,
+          fullName:
+            customer.name ||
+            customer.email.split("@")[0],
+          customerId,
+          subscriptionId: subscriptionId || "",
+          source: "paddle",
+        });
+
+        await authService.updateSubscriptionFromPaddle({
+          customerId,
+          subscriptionId: subscriptionId || "",
+          paddleEvent: event,
+        });
       }
 
-      await authService.signUpFromPaddle({
-        email: customer.email,
-        fullName:
-          customer.name ||
-          customer.email.split('@')[0],
-        customerId,
-        subscriptionId: subscriptionId || '',
-        source: 'paddle',
-      });
+      return { handled: true };
+    } catch (err: any) {
+      return { handled: false, reason: err.message };
+    }
+  }
 
-      return await authService.updateSubscriptionFromPaddle({
+  if (eventType === "subscription.canceled") {
+    try {
+      await authService.cancelSubscriptionFromPaddle({
         customerId,
-        subscriptionId: subscriptionId || '',
+        subscriptionId: subscriptionId || "",
         paddleEvent: event,
       });
+
+      return { handled: true };
+    } catch (err: any) {
+      return { handled: false, reason: err.message };
     }
-    return { handled: true };
-  } catch (error: any) {
-    return { handled: false, reason: error.message };
   }
+  if (eventType === "transaction.completed") {
+    try {
+      await authService.handleTransactionCompleted({
+        customerId,
+        event,
+      });
+
+      return { handled: true };
+    } catch (err: any) {
+      return { handled: false, reason: err.message };
+    }
+  }
+
+  return {
+    handled: false,
+    reason: "No handler matched",
+  };
 }

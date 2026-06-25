@@ -7,7 +7,6 @@ import {
   SignUpInput,
   SignInInput,
   PaddleSignUpInput,
-  PaddleSubscriptionUpdateInput,
   CompleteRegistrationInput,
   PendingRegistrationResult,
   AuthenticatedRequest,
@@ -22,6 +21,7 @@ import { TOKEN } from '../constants';
 import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET, PLAN_NAME_MAP, SUBSCRIPTION_RANK } from '../utils/constants';
 import { sendRegistrationEmail, sendSubsPlanChangeEmail } from './email.service';
 import { generateTokens, normalizePaddleSubscription } from '../utils/helper';
+import logger from '../utils/logger';
 
 export class AuthService {
   private readonly authRepository: AuthRepository;
@@ -133,60 +133,104 @@ export class AuthService {
     const { passwordHash: _, ...userWithoutPassword } = user;
     return { user: userWithoutPassword };
   }
+  async syncCustomerFromPaddle({
+    email,
+    fullName,
+    customerId,
+  }: any) {
+    const user = await this.authRepository.findByEmail(email);
 
-  async updateSubscriptionFromPaddle(
-    input: PaddleSubscriptionUpdateInput
-  ): Promise<any | null> {
+    if (!user) {
+      const placeholder = await bcrypt.hash(uuidv4(), 1);
 
-    const subscription = await this.subscriptionsRepository.findOne({
-      customerId: input.customerId,
+      const newUser = await this.authRepository.createUser({
+        email,
+        firstName: fullName,
+        passwordHash: placeholder,
+        registrationCompleted: false,
+        source: "paddle",
+        lastName: ''
+      });
+
+      await this.subscriptionsRepository.create({
+        userId: newUser.id,
+        customerId,
+        subscriptionId: "",
+      });
+
+      return newUser;
+    }
+
+    await this.subscriptionsRepository.upsertCustomer(user.id, {
+      customerId,
     });
+
+    return user;
+  }
+  async syncSubscriptionFromPaddle({
+    customerId,
+    subscriptionId,
+    event,
+  }: any) {
+    const sub =
+      await this.subscriptionsRepository.findOne({ customerId });
+
+    if (!sub) return null;
+
+    const normalized = normalizePaddleSubscription(event);
+
+    await this.subscriptionsRepository.update(sub.id, {
+      subscriptionId,
+      plan: normalized.product,
+      status: normalized.status,
+      startsAt: normalized.startsAt,
+      endsAt: normalized.endsAt,
+      billingInterval: normalized.billingCycle.interval || "month",
+    });
+
+    return true;
+  }
+  async updateSubscriptionFromPaddle({
+    customerId,
+    subscriptionId,
+    paddleEvent,
+  }: any) {
+    const subscription =
+      await this.subscriptionsRepository.findOne({ customerId });
 
     if (!subscription) return null;
 
-    const paddleEvent = input.paddleEvent;
-
-    const normalized = normalizePaddleSubscription(paddleEvent);
+    const normalized =
+      normalizePaddleSubscription(paddleEvent);
 
     const previousPlan = subscription.plan;
+    const previousInterval =
+      subscription.billingInterval || "month";
 
-    /**
-     * 🧠 CRITICAL FIX:
-     * These fields MUST ALWAYS be stored consistently
-     */
+    const newPlan = normalized.product;
+    const newInterval = normalized.billingCycle.interval || "month";
+
     await this.subscriptionsRepository.update(subscription.id, {
-      subscriptionId:
-        input.subscriptionId || subscription.subscriptionId,
-
-      plan: normalized.product,
-
+      subscriptionId,
+      plan: newPlan,
       status: normalized.status,
-
       startsAt: normalized.startsAt,
       endsAt: normalized.endsAt,
       canceledAt: normalized.canceledAt,
-      trialStart: normalized.trialStart,
-      trialEnd: normalized.trialEnd,
-
+      billingInterval: newInterval,
       metadata: {
         currency: normalized.currency,
         amount: normalized.amount,
         billingCycle: normalized.billingCycle,
-        collectionMode: normalized.collectionMode,
-        paddleEventType: paddleEvent?.event_type,
-        product: normalized.product,
+        event: paddleEvent.event_type,
       },
     });
 
-    const user = await this.authRepository.findById(subscription.userId);
+    const user = await this.authRepository.findById(
+      subscription.userId
+    );
+
     if (!user) return null;
-    const newPlan = (normalized.product || '').toLowerCase();
-
-    const previousInterval =
-      subscription.billingInterval || 'month';
-
-    const newInterval =
-      normalized.billingCycle || 'month';
 
     const previousRank =
       SUBSCRIPTION_RANK[`${previousPlan}:${previousInterval}`];
@@ -194,30 +238,24 @@ export class AuthService {
     const newRank =
       SUBSCRIPTION_RANK[`${newPlan}:${newInterval}`];
 
-    const subscriptionChanged =
+    const isUpgrade = newRank > previousRank;
+
+    const changed =
       previousPlan !== newPlan ||
       previousInterval !== newInterval;
 
-    if (subscriptionChanged) {
-      const isUpgrade = newRank > previousRank;
-
+    if (changed) {
       await sendSubsPlanChangeEmail({
         email: user.email,
         firstName: user.firstName,
-
         previousPlan:
           PLAN_NAME_MAP[previousPlan] || previousPlan,
-
-        newPlan:
-          PLAN_NAME_MAP[newPlan] || newPlan,
-
+        newPlan: PLAN_NAME_MAP[newPlan] || newPlan,
         previousInterval,
         newInterval,
-
         isUpgrade,
       });
     }
-
 
     return user;
   }
@@ -283,7 +321,31 @@ export class AuthService {
     const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
     const passwordHash = await bcrypt.hash(newPassword, salt);
   }
+  async cancelSubscriptionFromPaddle({
+    customerId,
+    subscriptionId,
+  }: any) {
+    const subscription =
+      await this.subscriptionsRepository.findOne({ customerId });
 
+    if (!subscription) return null;
+
+    await this.subscriptionsRepository.update(subscription.id, {
+      status: "CANCELED",
+      subscriptionId,
+    });
+
+    return true;
+  }
+  async handleTransactionCompleted({ customerId }: any) {
+    const subscription =
+      await this.subscriptionsRepository.findOne({ customerId });
+
+    if (!subscription) return null;
+
+    logger.info(`Transaction completed for subscription ${subscription.id} of user ${subscription.userId}`);
+    return true;
+  }
   async verifyEmail(userId: string): Promise<void> {
     await this.authRepository.updateUser(userId, {
       emailVerified: true,

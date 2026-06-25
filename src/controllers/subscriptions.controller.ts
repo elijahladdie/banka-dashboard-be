@@ -40,8 +40,7 @@ export class SubscriptionsController {
   async update(req: AuthenticatedRequest, res: Response) {
     const subscription = await this.subscriptionsService.update(
       req.params.id,
-      req.body,
-      req.user!.userId
+      req.body
     );
     ResponseHandler.success(res, subscription, 'Subscription updated successfully.');
   }
