@@ -11,13 +11,13 @@ export class SettingsController {
 
   async getProfile(req: AuthenticatedRequest, res: Response) {
     const user = await this.settingsService.getProfile(req.user!.userId);
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
     ResponseHandler.success(res, userWithoutPassword, 'Profile retrieved successfully.');
   }
 
   async updateProfile(req: AuthenticatedRequest, res: Response) {
     const user = await this.settingsService.updateProfile(req.user!.userId, req.body, req.user!.userId);
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
     ResponseHandler.success(res, userWithoutPassword, 'Profile updated successfully.');
   }
 

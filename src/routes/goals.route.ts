@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { GoalsController } from '../controllers/goals.controller';
 import { asyncWrapper } from '../utils/async-wrapper';
-import { jwtAuthGuard, rolesGuard } from '../middleware';
-import { ROLES } from '../constants';
+import { jwtAuthGuard, isAdminOrAdvisor, isClientOrAdvisor } from '../middleware';
 
 const router = Router();
 
@@ -12,17 +11,17 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR),
+  isAdminOrAdvisor,
   asyncWrapper(goalsController.findAll.bind(goalsController))
 );
 
-router.get('/my', asyncWrapper(goalsController.findBySubscriber.bind(goalsController)));
+router.get('/my', asyncWrapper(goalsController.findByClient.bind(goalsController)));
 router.get('/:id', asyncWrapper(goalsController.findById.bind(goalsController)));
-router.get('/subscriber/:subscriberId', asyncWrapper(goalsController.findBySubscriber.bind(goalsController)));
+router.get('/client/:clientId', asyncWrapper(goalsController.findByClient.bind(goalsController)));
 
 router.post(
   '/',
-  rolesGuard(ROLES.SUBSCRIBER, ROLES.FINANCIAL_ADVISOR),
+  isClientOrAdvisor,
   asyncWrapper(goalsController.create.bind(goalsController))
 );
 

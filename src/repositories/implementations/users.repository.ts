@@ -15,10 +15,10 @@ export class UsersRepository implements IUsersRepository {
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         ...params,
-        where: { ...params.where, deletedAt: null },
+        where: { ...params.where, closedAt: null },
       }),
       prisma.user.count({
-        where: { ...params.where, deletedAt: null },
+        where: { ...params.where, closedAt: null },
       })
     ]);
     return [users, total];
@@ -31,7 +31,7 @@ export class UsersRepository implements IUsersRepository {
   async softDelete(id: string): Promise<User> {
     return prisma.user.update({
       where: { id },
-      data: { deletedAt: new Date(), status: 'INACTIVE' },
+      data: { closedAt: new Date(), status: 'INACTIVE' },
     });
   }
 }

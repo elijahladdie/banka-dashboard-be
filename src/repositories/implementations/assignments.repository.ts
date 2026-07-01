@@ -1,30 +1,30 @@
-import { Prisma, SubscriberAssignment } from '@prisma/client';
+import { Prisma, ClientAssignment } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IAssignmentsRepository } from '../interfaces/assignments.interface';
 import { INCLUDE_USER } from '../../constants';
 import logger from '../../utils/logger';
 
 export class AssignmentsRepository implements IAssignmentsRepository {
-  async findById(id: string): Promise<SubscriberAssignment | null> {
-    return await prisma.subscriberAssignment.findUnique({ where: { id } });
+  async findById(id: string): Promise<ClientAssignment | null> {
+    return await prisma.clientAssignment.findUnique({ where: { id } });
   }
 
-  async findActiveBySubscriber(subscriberId: string): Promise<SubscriberAssignment | null> {
-    return await prisma.subscriberAssignment.findFirst({
-      where: { subscriberId, isActive: true },
+  async findActiveByClient(clientId: string): Promise<ClientAssignment | null> {
+    return await prisma.clientAssignment.findFirst({
+      where: { clientId, isActive: true },
     });
   }
 
   async findByAdvisor(
     advisorId: string,
     params: { skip?: number; take?: number }
-  ): Promise<SubscriberAssignment[]> {
-    return prisma.subscriberAssignment.findMany({
+  ): Promise<ClientAssignment[]> {
+    return prisma.clientAssignment.findMany({
       where: { advisorId },
       skip: params.skip,
       take: params.take,
       include: {
-        subscriber: true,
+        client: true,
       },
     });
   }
@@ -34,25 +34,25 @@ export class AssignmentsRepository implements IAssignmentsRepository {
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<[SubscriberAssignment[], number]> {
+  }): Promise<[ClientAssignment[], number]> {
     logger.info('Finding all assignments with params:', params);
     const [records, count] = await prisma.$transaction([
-      prisma.subscriberAssignment.findMany({
+      prisma.clientAssignment.findMany({
         ...params,
         include: {
-          subscriber: { include: INCLUDE_USER },
+          client: { include: INCLUDE_USER },
           advisor: { include: INCLUDE_USER },
           assignedByUser: INCLUDE_USER.user,
         },
       }),
-      prisma.subscriberAssignment.count({ where: params.where })]);
+      prisma.clientAssignment.count({ where: params.where })]);
 
     return [records, count];
   }
 
-  async create(data: Prisma.SubscriberAssignmentCreateInput): Promise<SubscriberAssignment> {
-    const subscriber = await prisma.user.findUnique({
-      where: { id: data.subscriber.connect?.id },
+  async create(data: Prisma.ClientAssignmentCreateInput): Promise<ClientAssignment> {
+    const client = await prisma.user.findUnique({
+      where: { id: data.client.connect?.id },
     });
 
     const advisor = await prisma.advisor.findUnique({
@@ -63,11 +63,11 @@ export class AssignmentsRepository implements IAssignmentsRepository {
       where: { id: data.assignedByUser.connect?.id },
     });
 
-    return prisma.subscriberAssignment.create({ data });
+    return prisma.clientAssignment.create({ data });
   }
 
-  async endAssignment(id: string): Promise<SubscriberAssignment> {
-    return prisma.subscriberAssignment.update({
+  async endAssignment(id: string): Promise<ClientAssignment> {
+    return prisma.clientAssignment.update({
       where: { id },
       data: { isActive: false, endedAt: new Date() },
     });

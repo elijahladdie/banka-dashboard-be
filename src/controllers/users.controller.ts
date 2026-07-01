@@ -16,13 +16,13 @@ export class UsersController {
 
   async findById(req: Request, res: Response) {
     const user = await this.usersService.findById(req.params.id);
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
     ResponseHandler.success(res, userWithoutPassword, 'User retrieved successfully.');
   }
 
   async update(req: AuthenticatedRequest, res: Response) {
     const user = await this.usersService.update(req.params.id, req.body, req.user!.userId);
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
     ResponseHandler.success(res, userWithoutPassword, 'User updated successfully.');
   }
 

@@ -1,6 +1,6 @@
 model Goal {
   id            String     @id @default(uuid()) @db.Uuid
-  subscriberId  String     @db.Uuid
+  clientId  String     @db.Uuid
   title         String     @db.VarChar(255)
   description   String?
   targetAmount  Decimal?   @db.Decimal(15, 2)
@@ -9,8 +9,6 @@ model Goal {
   status        GoalStatus @default(NOT_STARTED)
   createdAt     DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime   @updatedAt @db.Timestamptz(6)
-  deletedAt     DateTime?  @db.Timestamptz(6)
-  subscriber    User       @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
-
-  @@map("goals")
+  closedAt     DateTime?  @db.Timestamptz(6)
+  client    User       @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }

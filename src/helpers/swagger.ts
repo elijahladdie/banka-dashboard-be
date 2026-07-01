@@ -11,9 +11,9 @@ const options: swaggerJsdoc.Options = {
 
         ## System Roles
         - **Platform Admin** — Full platform access
-        - **Finance Officer** — Operational management (create/manage advisors, assign subscribers)
-        - **Financial Advisor** — Access only assigned subscribers
-        - **Subscriber** — Access only personal information
+        - **Finance Officer** — Operational management (create/manage advisors, assign clients)
+        - **Financial Advisor** — Access only assigned clients
+        - **Client** — Access only personal information
 
         ## Architecture
         \`\`\`
@@ -51,15 +51,25 @@ const options: swaggerJsdoc.Options = {
             firstName: { type: 'string' },
             lastName: { type: 'string' },
             phoneNumber: { type: 'string' },
-            role: {
-              type: 'string',
-              enum: ['PLATFORM_ADMIN', 'FINANCE_OFFICER', 'FINANCIAL_ADVISOR', 'SUBSCRIBER'],
+            roles: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  role: {
+                    type: 'object',
+                    properties: {
+                      slug: { type: 'string', enum: ['admin', 'advisor', 'client'] },
+                    },
+                  },
+                },
+              },
             },
             status: {
               type: 'string',
               enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING'],
             },
-            emailVerified: { type: 'boolean' },
+            isVerified: { type: 'boolean' },
             lastLoginAt: { type: 'string', format: 'date-time', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
@@ -102,11 +112,11 @@ const options: swaggerJsdoc.Options = {
             user: { $ref: '#/components/schemas/User' },
           },
         },
-        SubscriberAssignment: {
+        ClientAssignment: {
           type: 'object',
           properties: {
             id: { type: 'string', format: 'uuid' },
-            subscriberId: { type: 'string', format: 'uuid' },
+            clientId: { type: 'string', format: 'uuid' },
             advisorId: { type: 'string', format: 'uuid' },
             assignedBy: { type: 'string', format: 'uuid' },
             assignedAt: { type: 'string', format: 'date-time' },
@@ -120,7 +130,7 @@ const options: swaggerJsdoc.Options = {
           type: 'object',
           properties: {
             id: { type: 'string', format: 'uuid' },
-            subscriberId: { type: 'string', format: 'uuid' },
+            clientId: { type: 'string', format: 'uuid' },
             title: { type: 'string' },
             description: { type: 'string', nullable: true },
             targetAmount: { type: 'number', nullable: true },
@@ -136,7 +146,7 @@ const options: swaggerJsdoc.Options = {
           properties: {
             id: { type: 'string', format: 'uuid' },
             advisorId: { type: 'string', format: 'uuid' },
-            subscriberId: { type: 'string', format: 'uuid' },
+            clientId: { type: 'string', format: 'uuid' },
             title: { type: 'string' },
             content: { type: 'string' },
             createdAt: { type: 'string', format: 'date-time' },
@@ -148,7 +158,7 @@ const options: swaggerJsdoc.Options = {
           properties: {
             id: { type: 'string', format: 'uuid' },
             advisorId: { type: 'string', format: 'uuid' },
-            subscriberId: { type: 'string', format: 'uuid' },
+            clientId: { type: 'string', format: 'uuid' },
             title: { type: 'string' },
             description: { type: 'string', nullable: true },
             meetingDate: { type: 'string', format: 'date-time' },
@@ -174,7 +184,7 @@ const options: swaggerJsdoc.Options = {
         AnalyticsOverview: {
           type: 'object',
           properties: {
-            totalSubscribers: { type: 'integer' },
+            totalClients: { type: 'integer' },
             totalAdvisors: { type: 'integer' },
             activeSubscriptions: { type: 'integer' },
             revenueByPlan: {
@@ -252,9 +262,9 @@ const options: swaggerJsdoc.Options = {
       { name: 'Users', description: 'User management (admin only)' },
       { name: 'Subscriptions', description: 'Subscription lifecycle management' },
       { name: 'Advisors', description: 'Advisor profiles and management' },
-      { name: 'Assignments', description: 'Subscriber-to-Advisor assignments' },
+      { name: 'Assignments', description: 'Client-to-Advisor assignments' },
       { name: 'Goals', description: 'Financial goals tracking' },
-      { name: 'Meetings', description: 'Advisor-subscriber meetings' },
+      { name: 'Meetings', description: 'Advisor-client meetings' },
       { name: 'Notifications', description: 'User notifications' },
       { name: 'Analytics', description: 'Dashboard analytics (admin/finance)' },
       { name: 'Settings', description: 'Profile and password management' },
@@ -297,7 +307,7 @@ const options: swaggerJsdoc.Options = {
       '/api/auth/signup': {
         post: {
           tags: ['Authentication'],
-          summary: 'Create a new subscriber account',
+          summary: 'Create a new client account',
           security: [],
           requestBody: {
             required: true,
@@ -448,7 +458,20 @@ const options: swaggerJsdoc.Options = {
                   properties: {
                     firstName: { type: 'string' },
                     lastName: { type: 'string' },
-                    role: { type: 'string', enum: ['PLATFORM_ADMIN', 'FINANCE_OFFICER', 'FINANCIAL_ADVISOR', 'SUBSCRIBER'] },
+                    roles: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          role: {
+                            type: 'object',
+                            properties: {
+                              slug: { type: 'string', enum: ['admin', 'advisor', 'client'] },
+                            },
+                          },
+                        },
+                      },
+                    },
                     status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING'] },
                   },
                 },
@@ -625,7 +648,7 @@ const options: swaggerJsdoc.Options = {
             { name: 'limit', in: 'query', schema: { type: 'integer' } },
             { name: 'isActive', in: 'query', schema: { type: 'string' } },
             { name: 'advisorId', in: 'query', schema: { type: 'string' } },
-            { name: 'subscriberId', in: 'query', schema: { type: 'string' } },
+            { name: 'clientId', in: 'query', schema: { type: 'string' } },
           ],
           responses: { 200: { description: 'Paginated assignments' } },
         },
@@ -633,16 +656,16 @@ const options: swaggerJsdoc.Options = {
       '/api/assignments/assign': {
         post: {
           tags: ['Assignments'],
-          summary: 'Assign subscriber to advisor (Admin/Finance)',
+          summary: 'Assign client to advisor (Admin/Finance)',
           requestBody: {
             required: true,
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['subscriberId', 'advisorId'],
+                  required: ['clientId', 'advisorId'],
                   properties: {
-                    subscriberId: { type: 'string', format: 'uuid' },
+                    clientId: { type: 'string', format: 'uuid' },
                     advisorId: { type: 'string', format: 'uuid' },
                   },
                 },
@@ -652,11 +675,11 @@ const options: swaggerJsdoc.Options = {
           responses: { 201: { description: 'Assignment created' }, 409: { description: 'Already assigned or advisor unavailable' } },
         },
       },
-      '/api/assignments/active/{subscriberId}': {
+      '/api/assignments/active/{clientId}': {
         get: {
           tags: ['Assignments'],
-          summary: 'Get active assignment for a subscriber',
-          parameters: [{ name: 'subscriberId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+          summary: 'Get active assignment for a client',
+          parameters: [{ name: 'clientId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
           responses: { 200: { description: 'Active assignment or null' } },
         },
       },
@@ -679,7 +702,7 @@ const options: swaggerJsdoc.Options = {
           parameters: [
             { name: 'page', in: 'query', schema: { type: 'integer' } },
             { name: 'limit', in: 'query', schema: { type: 'integer' } },
-            { name: 'subscriberId', in: 'query', schema: { type: 'string' } },
+            { name: 'clientId', in: 'query', schema: { type: 'string' } },
             { name: 'status', in: 'query', schema: { type: 'string' } },
           ],
           responses: { 200: { description: 'Paginated goals' } },
@@ -714,11 +737,11 @@ const options: swaggerJsdoc.Options = {
           responses: { 200: { description: 'Paginated goals for current user' } },
         },
       },
-      '/api/goals/subscriber/{subscriberId}': {
+      '/api/goals/client/{clientId}': {
         get: {
           tags: ['Goals'],
-          summary: 'Get goals for a specific subscriber',
-          parameters: [{ name: 'subscriberId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+          summary: 'Get goals for a specific client',
+          parameters: [{ name: 'clientId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
           responses: { 200: { description: 'Paginated goals' } },
         },
       },
@@ -775,7 +798,7 @@ const options: swaggerJsdoc.Options = {
             { name: 'limit', in: 'query', schema: { type: 'integer' } },
             { name: 'status', in: 'query', schema: { type: 'string' } },
             { name: 'advisorId', in: 'query', schema: { type: 'string' } },
-            { name: 'subscriberId', in: 'query', schema: { type: 'string' } },
+            { name: 'clientId', in: 'query', schema: { type: 'string' } },
             { name: 'fromDate', in: 'query', schema: { type: 'string', format: 'date' } },
             { name: 'toDate', in: 'query', schema: { type: 'string', format: 'date' } },
           ],
@@ -790,10 +813,10 @@ const options: swaggerJsdoc.Options = {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['advisorId', 'subscriberId', 'title', 'meetingDate'],
+                  required: ['advisorId', 'clientId', 'title', 'meetingDate'],
                   properties: {
                     advisorId: { type: 'string', format: 'uuid' },
-                    subscriberId: { type: 'string', format: 'uuid' },
+                    clientId: { type: 'string', format: 'uuid' },
                     title: { type: 'string' },
                     description: { type: 'string' },
                     meetingDate: { type: 'string', format: 'date-time' },
@@ -975,7 +998,7 @@ const options: swaggerJsdoc.Options = {
           parameters: [
             { name: 'page', in: 'query', schema: { type: 'integer' } },
             { name: 'limit', in: 'query', schema: { type: 'integer' } },
-            { name: 'subscriberId', in: 'query', schema: { type: 'string' } },
+            { name: 'clientId', in: 'query', schema: { type: 'string' } },
           ],
           responses: { 200: { description: 'Paginated advisory notes' } },
         },
@@ -988,10 +1011,10 @@ const options: swaggerJsdoc.Options = {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['advisorId', 'subscriberId', 'title', 'content'],
+                  required: ['advisorId', 'clientId', 'title', 'content'],
                   properties: {
                     advisorId: { type: 'string', format: 'uuid' },
-                    subscriberId: { type: 'string', format: 'uuid' },
+                    clientId: { type: 'string', format: 'uuid' },
                     title: { type: 'string' },
                     content: { type: 'string' },
                   },

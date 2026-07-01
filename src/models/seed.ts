@@ -1,3 +1,4 @@
+
 import { PrismaClient} from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import logger from '../utils/logger';
@@ -13,34 +14,44 @@ async function main() {
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash('Admin@123', salt);
 
-  // Create Platform Admin
+  // Upsert Role records
+  const adminRole = await prisma.role.upsert({
+    where: { slug: 'admin' },
+    update: {},
+    create: { name: 'Admin', slug: 'admin', description: 'Platform administrator' },
+  });
+
+  const advisorRole = await prisma.role.upsert({
+    where: { slug: 'advisor' },
+    update: {},
+    create: { name: 'Advisor', slug: 'advisor', description: 'Financial advisor' },
+  });
+
+  const clientRole = await prisma.role.upsert({
+    where: { slug: 'client' },
+    update: {},
+    create: { name: 'Client', slug: 'client', description: 'Platform client' },
+  });
+
+  // Create Admin user
   const admin = await prisma.user.upsert({
     where: { email: 'admin@banka.rw' },
     update: {},
     create: {
       email: 'admin@banka.rw',
-      passwordHash,
+      password: passwordHash,
       firstName: 'System',
       lastName: 'Admin',
-      role: 'PLATFORM_ADMIN',
       status: 'ACTIVE',
-      emailVerified: true,
+      isVerified: true,
     },
   });
 
-  // Create Finance Officer
-  const financeOfficer = await prisma.user.upsert({
-    where: { email: 'finance@banka.rw' },
+  // Assign admin role
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },
     update: {},
-    create: {
-      email: 'finance@banka.rw',
-      passwordHash,
-      firstName: 'Jean',
-      lastName: 'Pierre',
-      role: 'FINANCE_OFFICER',
-      status: 'ACTIVE',
-      emailVerified: true,
-    },
+    create: { userId: admin.id, roleId: adminRole.id },
   });
 
   // Create sample advisor user
@@ -49,13 +60,19 @@ async function main() {
     update: {},
     create: {
       email: 'advisor@banka.rw',
-      passwordHash,
+      password: passwordHash,
       firstName: 'Alice',
       lastName: 'Mukamana',
-      role: 'FINANCIAL_ADVISOR',
       status: 'ACTIVE',
-      emailVerified: true,
+      isVerified: true,
     },
+  });
+
+  // Assign advisor role
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: advisorUser.id, roleId: advisorRole.id } },
+    update: {},
+    create: { userId: advisorUser.id, roleId: advisorRole.id },
   });
 
   // Create advisor profile
@@ -73,27 +90,33 @@ async function main() {
     },
   });
 
-  // Create sample subscriber
-  const subscriberUser = await prisma.user.upsert({
-    where: { email: 'subscriber@banka.rw' },
+  // Create sample client
+  const clientUser = await prisma.user.upsert({
+    where: { email: 'client@banka.rw' },
     update: {},
     create: {
-      email: 'subscriber@banka.rw',
-      passwordHash,
+      email: 'client@banka.rw',
+      password: passwordHash,
       firstName: 'Patrick',
       lastName: 'Niyonzima',
-      role: 'SUBSCRIBER',
       status: 'ACTIVE',
-      emailVerified: true,
+      isVerified: true,
     },
   });
 
-  // Create subscription for subscriber
+  // Assign client role
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: clientUser.id, roleId: clientRole.id } },
+    update: {},
+    create: { userId: clientUser.id, roleId: clientRole.id },
+  });
+
+  // Create subscription for client
   await prisma.subscription.upsert({
-    where: { userId: subscriberUser.id },
+    where: { userId: clientUser.id },
     update: {},
     create: {
-      userId: subscriberUser.id,
+      userId: clientUser.id,
       plan: 'PRO',
       status: 'ACTIVE',
       billingInterval: 'month',
@@ -106,7 +129,7 @@ async function main() {
   // Create sample goals
   await prisma.goal.create({
     data: {
-      subscriberId: subscriberUser.id,
+      clientId: clientUser.id,
       title: 'Emergency Fund',
       description: 'Build 6 months of emergency savings',
       targetAmount: 1500000,
@@ -118,7 +141,7 @@ async function main() {
 
   await prisma.goal.create({
     data: {
-      subscriberId: subscriberUser.id,
+      clientId: clientUser.id,
       title: 'Retirement Savings',
       description: 'Save for early retirement',
       targetAmount: 50000000,
@@ -131,7 +154,7 @@ async function main() {
   // Create sample notification
   await prisma.notification.create({
     data: {
-      userId: subscriberUser.id,
+      userId: clientUser.id,
       title: 'Welcome to Banka!',
       message: 'Thank you for joining Banka. Start tracking your financial goals today.',
       type: 'SUCCESS',
@@ -144,7 +167,7 @@ async function main() {
   logger.info('  Admin: admin@banka.rw');
   logger.info('  Finance: finance@banka.rw');
   logger.info('  Advisor: advisor@banka.rw');
-  logger.info('  Subscriber: subscriber@banka.rw');
+  logger.info('  Client: client@banka.rw');
 }
 
 main()

@@ -15,13 +15,13 @@ export class AssignmentsController {
   }
 
   async assign(req: AuthenticatedRequest, res: Response) {
-    const { subscriberId, advisorId } = req.body;
-    const assignment = await this.assignmentsService.assignSubscriber(
-      subscriberId,
+    const { clientId, advisorId } = req.body;
+    const assignment = await this.assignmentsService.assignClient(
+      clientId,
       advisorId,
       req.user!.userId
     );
-    ResponseHandler.success(res, assignment, 'Subscriber assigned to advisor successfully.', 100, 201);
+    ResponseHandler.success(res, assignment, 'Client assigned to advisor successfully.', 100, 201);
   }
 
   async endAssignment(req: AuthenticatedRequest, res: Response) {
@@ -33,7 +33,7 @@ export class AssignmentsController {
   }
 
   async getActiveAssignment(req: AuthenticatedRequest, res: Response) {
-    const assignment = await this.assignmentsService.getActiveAssignment(req.params.subscriberId);
+    const assignment = await this.assignmentsService.getActiveAssignment(req.params.clientId);
     const message = assignment ? 'Active assignment found.' : 'No active assignment.';
     ResponseHandler.success(res, assignment, message);
   }

@@ -9,11 +9,9 @@ model Advisor {
   isAvailable    Boolean                @default(true)
   createdAt      DateTime               @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime               @updatedAt @db.Timestamptz(6)
-  deletedAt      DateTime?              @db.Timestamptz(6)
+  closedAt      DateTime?              @db.Timestamptz(6)
   user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   advisoryNotes  AdvisoryNote[]
   meetings       Meeting[]              @relation("AdvisorMeetings")
-  assignments    SubscriberAssignment[] @relation("Advisor")
-
-  @@map("advisors")
+  assignments    ClientAssignment[] @relation("Advisor")
 }

@@ -7,13 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  PLATFORM_ADMIN
-  FINANCE_OFFICER
-  FINANCIAL_ADVISOR
-  SUBSCRIBER
-}
-
 enum UserStatus {
   ACTIVE
   INACTIVE

@@ -16,7 +16,13 @@ export class UsersService {
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
     const where: Record<string, any> = {};
-    if (query.role) where.role = query.role;
+    if (query.role) {
+      where.userRoles = {
+        some: {
+          role: { slug: query.role },
+        },
+      };
+    }
     if (query.status) where.status = query.status;
     if (query.search) {
       where.OR = [

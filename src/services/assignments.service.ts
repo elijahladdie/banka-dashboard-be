@@ -1,4 +1,4 @@
-import { Prisma, SubscriberAssignment } from '@prisma/client';
+import { Prisma, ClientAssignment } from '@prisma/client';
 import { AssignmentsRepository } from '../repositories/implementations/assignments.repository';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { ConflictError, NotFoundError, ValidationError } from '../helpers';
@@ -17,41 +17,45 @@ export class AssignmentsService {
     this.subsRepository = new SubscriptionsRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<SubscriberAssignment>> {
+  async findAll(query: Record<string, any>): Promise<PaginatedResult<ClientAssignment>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
-    const where: Prisma.SubscriberAssignmentWhereInput = {};
+    const where: Prisma.ClientAssignmentWhereInput = {};
     if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
     if (query.advisorId) where.advisorId = query.advisorId;
-    if (query.subscriberId) where.subscriber = { user: { id: query.subscriberId } };
+    if (query.clientId) where.client = { user: { id: query.clientId } };
 
     const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where }) as [any[], number];
-    type FormattedAssignment = Omit<SubscriberAssignment, "subscriber"> & {
+    type FormattedAssignment = Omit<ClientAssignment, "client"> & {
       user: TUserSelect;
     };
 
     const formattedAssignments: FormattedAssignment[] = assignments.map(
-      ({ subscriber, ...rest }) => ({
+      ({ client, ...rest }) => ({
         ...rest,
-        subscriber: subscriber.user as TUserSelect,
+        client: client.user as TUserSelect,
       })
     );
 
     return paginateResult(formattedAssignments, total, pagination);
   }
 
-  async assignSubscriber(
-    subscriberId: string,
+  async assignClient(
+    clientId: string,
     advisorId: string,
     assignedBy: string
-  ): Promise<SubscriberAssignment> {
-    // Verify subscriber exists and has SUBSCRIBER role
-    const subscriber = await this.subsRepository.findOne({ id: subscriberId });
-    logger.info('Subscriber found:', subscriber);
-    if (!subscriber) throw new NotFoundError('Subscriber not found');
-    if (subscriber.user.role !== 'SUBSCRIBER') {
-      throw new ValidationError('User is not a subscriber.');
+  ): Promise<ClientAssignment> {
+    // Verify client exists and has client role
+    const client = await this.subsRepository.findOne({ id: clientId });
+    logger.info('Client found:', client);
+    if (!client) throw new NotFoundError('Client not found');
+
+    const hasClientRole = client.user?.userRoles?.some(
+      (ur: { role: { slug: string } }) => ur.role.slug === 'client'
+    );
+    if (!hasClientRole) {
+      throw new ValidationError('User is not a client.');
     }
 
     // Verify advisor exists
@@ -67,22 +71,22 @@ export class AssignmentsService {
     }
 
     // Check for existing active assignment
-    const existing = await this.assignmentsRepository.findActiveBySubscriber(subscriberId);
+    const existing = await this.assignmentsRepository.findActiveByClient(clientId);
     if (existing) {
-      throw new ConflictError('Subscriber already has an active advisor assignment.');
+      throw new ConflictError('Client already has an active advisor assignment.');
     }
 
     // Create assignment
-    //     await prisma.subscriberAssignment.create({
+    //     await prisma.clientAssignment.create({
     //   data: 
     // });
     const assignment = await this.assignmentsRepository.create({
       assignedAt: new Date(),
       isActive: true,
 
-      subscriber: {
+      client: {
         connect: {
-          id: subscriberId,
+          id: clientId,
         },
       },
 
@@ -107,7 +111,7 @@ export class AssignmentsService {
     return assignment;
   }
 
-  async endAssignment(id: string, actorId: string): Promise<SubscriberAssignment> {
+  async endAssignment(id: string, actorId: string): Promise<ClientAssignment> {
     const assignment = await this.assignmentsRepository.findById(id);
     if (!assignment) throw new NotFoundError('Assignment');
     if (!assignment.isActive) throw new ValidationError('Assignment is already ended.');
@@ -125,7 +129,7 @@ export class AssignmentsService {
     return ended;
   }
 
-  async getActiveAssignment(subscriberId: string): Promise<SubscriberAssignment | null> {
-    return this.assignmentsRepository.findActiveBySubscriber(subscriberId);
+  async getActiveAssignment(clientId: string): Promise<ClientAssignment | null> {
+    return this.assignmentsRepository.findActiveByClient(clientId);
   }
 }

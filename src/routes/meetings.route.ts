@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { MeetingsController } from '../controllers/meetings.controller';
 import { asyncWrapper } from '../utils/async-wrapper';
-import { jwtAuthGuard, rolesGuard } from '../middleware';
-import { ROLES } from '../constants';
+import { jwtAuthGuard } from '../middleware';
 
 const router = Router();
 
@@ -12,7 +11,7 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  // rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR),
+  // rolesGuard(ROLES.ADMIN, ROLES.ADVISOR),
   asyncWrapper(meetingsController.findAll.bind(meetingsController))
 );
 

@@ -1,157 +1,8 @@
 export const ROLES = {
-  PLATFORM_ADMIN: 'PLATFORM_ADMIN',
-  FINANCE_OFFICER: 'FINANCE_OFFICER',
-  FINANCIAL_ADVISOR: 'FINANCIAL_ADVISOR',
-  SUBSCRIBER: 'SUBSCRIBER',
+  ADMIN: 'admin',
+  ADVISOR: 'advisor',
+  CLIENT: 'client',
 } as const;
-
-export const USER_STATUS = {
-  ACTIVE: 'ACTIVE',
-  INACTIVE: 'INACTIVE',
-  SUSPENDED: 'SUSPENDED',
-  PENDING: 'PENDING',
-} as const;
-
-export const SUBSCRIPTION_PLANS = {
-  STARTER: 'STARTER',
-  PRO: 'PRO',
-  ADVANCED: 'ADVANCED',
-} as const;
-
-export const SUBSCRIPTION_STATUS = {
-  ACTIVE: 'ACTIVE',
-  PAST_DUE: 'PAST_DUE',
-  TRIALING: 'TRIALING',
-  CANCELED: 'CANCELED',
-  EXPIRED: 'EXPIRED',
-} as const;
-
-export const GOAL_STATUS = {
-  NOT_STARTED: 'NOT_STARTED',
-  IN_PROGRESS: 'IN_PROGRESS',
-  COMPLETED: 'COMPLETED',
-  CANCELED: 'CANCELED',
-} as const;
-
-export const REPORT_TYPE = {
-  month: 'month',
-  QUARTERLY: 'QUARTERLY',
-  ANNUAL: 'ANNUAL',
-  CUSTOM: 'CUSTOM',
-} as const;
-
-export const MEETING_STATUS = {
-  SCHEDULED: 'SCHEDULED',
-  COMPLETED: 'COMPLETED',
-  CANCELLED: 'CANCELLED',
-  NO_SHOW: 'NO_SHOW',
-} as const;
-
-export const NOTIFICATION_TYPE = {
-  INFO: 'INFO',
-  WARNING: 'WARNING',
-  SUCCESS: 'SUCCESS',
-  ERROR: 'ERROR',
-  REMINDER: 'REMINDER',
-} as const;
-
-export const BILLING_INTERVAL = {
-  month: 'month',
-  year: 'year',
-} as const;
-
-export const PERMISSIONS = {
-  // User management
-  USERS_READ: 'users:read',
-  USERS_CREATE: 'users:create',
-  USERS_UPDATE: 'users:update',
-  USERS_DELETE: 'users:delete',
-
-  // Advisor management
-  ADVISORS_READ: 'advisors:read',
-  ADVISORS_CREATE: 'advisors:create',
-  ADVISORS_UPDATE: 'advisors:update',
-  ADVISORS_DELETE: 'advisors:delete',
-
-  // Subscription management
-  SUBSCRIPTIONS_READ: 'subscriptions:read',
-  SUBSCRIPTIONS_CREATE: 'subscriptions:create',
-  SUBSCRIPTIONS_UPDATE: 'subscriptions:update',
-  SUBSCRIPTIONS_DELETE: 'subscriptions:delete',
-
-  // Assignment management
-  ASSIGNMENTS_READ: 'assignments:read',
-  ASSIGNMENTS_CREATE: 'assignments:create',
-  ASSIGNMENTS_UPDATE: 'assignments:update',
-  ASSIGNMENTS_DELETE: 'assignments:delete',
-
-  // Goal management
-  GOALS_READ: 'goals:read',
-  GOALS_CREATE: 'goals:create',
-  GOALS_UPDATE: 'goals:update',
-  GOALS_DELETE: 'goals:delete',
-
-  // Meeting management
-  MEETINGS_READ: 'meetings:read',
-  MEETINGS_CREATE: 'meetings:create',
-  MEETINGS_UPDATE: 'meetings:update',
-  MEETINGS_DELETE: 'meetings:delete',
-
-  // Notification management
-  NOTIFICATIONS_READ: 'notifications:read',
-  NOTIFICATIONS_CREATE: 'notifications:create',
-  NOTIFICATIONS_UPDATE: 'notifications:update',
-  NOTIFICATIONS_DELETE: 'notifications:delete',
-
-  // Analytics
-  ANALYTICS_READ: 'analytics:read',
-  // Settings
-  SETTINGS_READ: 'settings:read',
-  SETTINGS_UPDATE: 'settings:update',
-} as const;
-
-export const ROLE_PERMISSIONS: Record<string, string[]> = {
-  [ROLES.PLATFORM_ADMIN]: Object.values(PERMISSIONS),
-
-  [ROLES.FINANCE_OFFICER]: [
-    PERMISSIONS.USERS_READ,
-    PERMISSIONS.ADVISORS_READ,
-    PERMISSIONS.ADVISORS_CREATE,
-    PERMISSIONS.ADVISORS_UPDATE,
-    PERMISSIONS.ASSIGNMENTS_READ,
-    PERMISSIONS.ASSIGNMENTS_CREATE,
-    PERMISSIONS.ASSIGNMENTS_UPDATE,
-    PERMISSIONS.SUBSCRIPTIONS_READ,
-    PERMISSIONS.SUBSCRIPTIONS_UPDATE,
-    PERMISSIONS.ANALYTICS_READ,
-    PERMISSIONS.NOTIFICATIONS_READ,
-    PERMISSIONS.NOTIFICATIONS_CREATE,
-  ],
-
-  [ROLES.FINANCIAL_ADVISOR]: [
-    PERMISSIONS.USERS_READ,
-    PERMISSIONS.GOALS_READ,
-    PERMISSIONS.GOALS_CREATE,
-    PERMISSIONS.GOALS_UPDATE,
-
-    PERMISSIONS.MEETINGS_READ,
-    PERMISSIONS.MEETINGS_CREATE,
-    PERMISSIONS.MEETINGS_UPDATE,
-    PERMISSIONS.NOTIFICATIONS_READ,
-    PERMISSIONS.NOTIFICATIONS_CREATE,
-    PERMISSIONS.ASSIGNMENTS_READ,
-  ],
-
-  [ROLES.SUBSCRIBER]: [
-    PERMISSIONS.USERS_READ,
-    PERMISSIONS.GOALS_READ,
-    PERMISSIONS.GOALS_CREATE,
-    PERMISSIONS.GOALS_UPDATE,
-    PERMISSIONS.MEETINGS_READ,
-    PERMISSIONS.NOTIFICATIONS_READ,
-    PERMISSIONS.SUBSCRIPTIONS_READ,
-  ],
-};
 
 export const PAGINATION = {
   DEFAULT_PAGE: 1,
@@ -167,40 +18,6 @@ export const TOKEN = {
   VERIFICATION_TOKEN_EXPIRY: 24 * 60 * 60 * 1000, // 24 hours
 };
 
-export const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  ACCEPTED: 202,
-  NO_CONTENT: 204,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  UNPROCESSABLE_ENTITY: 422,
-  TOO_MANY_REQUESTS: 429,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
-
-export const ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  FORBIDDEN: 'FORBIDDEN',
-  NOT_FOUND: 'NOT_FOUND',
-  CONFLICT: 'CONFLICT',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-  RATE_LIMITED: 'RATE_LIMITED',
-  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
-  INVALID_TOKEN: 'INVALID_TOKEN',
-  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
-  EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
-  USER_SUSPENDED: 'USER_SUSPENDED',
-  USER_INACTIVE: 'USER_INACTIVE',
-  SUBSCRIPTION_REQUIRED: 'SUBSCRIPTION_REQUIRED',
-  ASSIGNMENT_EXISTS: 'ASSIGNMENT_EXISTS',
-  ADVISOR_UNAVAILABLE: 'ADVISOR_UNAVAILABLE',
-  MAX_CLIENTS_REACHED: 'MAX_CLIENTS_REACHED',
-} as const;
 export const INCLUDE_USER = {
   user: {
     select: {
@@ -210,13 +27,19 @@ export const INCLUDE_USER = {
       email: true,
       phoneNumber: true,
       status: true,
-      role: true,
+      userRoles: {
+        select: {
+          role: {
+            select: { slug: true },
+          },
+        },
+      },
     },
   },
 };
 export const INCLUDE_USER_ADVISOR = {
   ...INCLUDE_USER,
-  subscriberAssignment: {
+  clientAssignment: {
     include: {
       advisor: {
         select: {

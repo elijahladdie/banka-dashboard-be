@@ -17,7 +17,7 @@ export class MeetingsService {
     const where: Record<string, any> = {};
     if (query.status) where.status = query.status;
     if (query.advisorId) where.advisorId = query.advisorId;
-    if (query.subscriberId) where.subscriberId = query.subscriberId;
+    if (query.clientId) where.clientId = query.clientId;
     if (query.fromDate) where.meetingDate = { ...where.meetingDate, gte: new Date(query.fromDate) };
     if (query.toDate) where.meetingDate = { ...where.meetingDate, lte: new Date(query.toDate) };
 

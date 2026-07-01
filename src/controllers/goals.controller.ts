@@ -19,15 +19,15 @@ export class GoalsController {
     ResponseHandler.success(res, goal, 'Goal retrieved successfully.');
   }
 
-  async findBySubscriber(req: AuthenticatedRequest, res: Response) {
-    const subscriberId = req.params.subscriberId || req.user!.userId;
-    const result = await this.goalsService.findBySubscriber(subscriberId, req.query);
+  async findByClient(req: AuthenticatedRequest, res: Response) {
+    const clientId = req.params.clientId || req.user!.userId;
+    const result = await this.goalsService.findByClient(clientId, req.query);
     ResponseHandler.success(res, result, 'Goals retrieved successfully.');
   }
 
   async create(req: AuthenticatedRequest, res: Response) {
     const goal = await this.goalsService.create(
-      { ...req.body, subscriberId: req.user!.userId },
+      { ...req.body, clientId: req.user!.userId },
       req.user!.userId
     );
     ResponseHandler.success(res, goal, 'Goal created successfully.', 100, 201);

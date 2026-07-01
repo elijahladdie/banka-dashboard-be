@@ -35,28 +35,28 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     return await prisma.subscription.findMany({
       ...params,
       include: INCLUDE_USER,
-    }) as SubscriptionWithUser[]
+    }) as unknown as SubscriptionWithUser[]
   }
 
   async findOneWithUser(id: string): Promise<SubscriptionWithUser | null> {
     return await prisma.subscription.findUnique({
       where: { id },
       include: INCLUDE_USER,
-    }) as SubscriptionWithUser;
+    }) as unknown as SubscriptionWithUser;
   }
 
   async findByAdvisor(advisorId: string): Promise<SubscriptionWithUser[]> {
-    const assignments = await prisma.subscriberAssignment.findMany({
+    const assignments = await prisma.clientAssignment.findMany({
       where: { advisorId, isActive: true },
       include: {
-        subscriber: {
+        client: {
           include: { user: true },
         },
       },
     });
     const resp =
       assignments
-        .map((a) => a.subscriber as SubscriptionWithUser | null)
+        .map((a) => a.client as unknown as SubscriptionWithUser | null)
         .filter(Boolean) as SubscriptionWithUser[];
 
     return resp;
@@ -66,7 +66,7 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     return await prisma.subscription.findMany({
       where: { status: 'ACTIVE' },
       include: INCLUDE_USER,
-    }) as SubscriptionWithUser[];
+    }) as unknown as SubscriptionWithUser[];
   }
 
   async create(data: Partial<Subscription>): Promise<Subscription> {

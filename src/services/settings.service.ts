@@ -32,7 +32,7 @@ export class SettingsService {
   ): Promise<void> {
     const user = await this.getProfile(userId);
 
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
       throw new ValidationError('Current password is incorrect.');
     }

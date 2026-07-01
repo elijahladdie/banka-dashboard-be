@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { SubscriptionsController } from '../controllers/subscriptions.controller';
 import { asyncWrapper } from '../utils/async-wrapper';
-import { jwtAuthGuard, rolesGuard } from '../middleware';
-import { ROLES } from '../constants';
+import { jwtAuthGuard, isAdminOrAdvisor } from '../middleware';
 
 const router = Router();
 
@@ -12,7 +11,7 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCIAL_ADVISOR),
+  isAdminOrAdvisor,
   asyncWrapper(subscriptionsController.findAll.bind(subscriptionsController))
 );
 

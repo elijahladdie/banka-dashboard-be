@@ -3,6 +3,5 @@ export {
   signInSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  paddleSignUpSchema,
   completeRegistrationSchema,
 } from './auth.validator';

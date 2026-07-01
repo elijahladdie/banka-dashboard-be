@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { AssignmentsController } from '../controllers/assignments.controller';
 import { asyncWrapper } from '../utils/async-wrapper';
-import { jwtAuthGuard, rolesGuard } from '../middleware';
-import { ROLES } from '../constants';
+import { jwtAuthGuard, isAdmin } from '../middleware';
 
 const router = Router();
 
@@ -12,24 +11,24 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  // rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
+  // rolesGuard(ROLES.ADMIN),
   asyncWrapper(assignmentsController.findAll.bind(assignmentsController))
 );
 
 router.post(
   '/assign',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
+  isAdmin,
   asyncWrapper(assignmentsController.assign.bind(assignmentsController))
 );
 
 router.get(
-  '/active/:subscriberId',
+  '/active/:clientId',
   asyncWrapper(assignmentsController.getActiveAssignment.bind(assignmentsController))
 );
 
 router.post(
   '/:id/end',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
+  isAdmin,
   asyncWrapper(assignmentsController.endAssignment.bind(assignmentsController))
 );
 

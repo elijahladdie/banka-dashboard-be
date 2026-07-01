@@ -601,6 +601,11 @@
   resolved "https://registry.npmjs.org/@kurkle/color/-/color-0.3.4.tgz"
   integrity sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==
 
+"@paddle/paddle-node-sdk@^3.8.0":
+  version "3.8.0"
+  resolved "https://registry.yarnpkg.com/@paddle/paddle-node-sdk/-/paddle-node-sdk-3.8.0.tgz#fd038d81a8e2e07847c2e3ba127537a0656d5d3f"
+  integrity sha512-4RS6AhZisloYaT2jiFgx9hwm22qwLRUx4EgIVb1gS3bS96lhDBQWq8BC1/Zow2i3CuxMkehXQUc3qKSBS77ozA==
+
 "@prisma/adapter-pg@^7.8.0":
   version "7.8.0"
   resolved "https://registry.npmjs.org/@prisma/adapter-pg/-/adapter-pg-7.8.0.tgz"

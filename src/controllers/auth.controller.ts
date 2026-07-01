@@ -14,11 +14,6 @@ export class AuthController {
     ResponseHandler.success(res, { user, token }, 'Account created successfully.', 100, 201);
   }
 
-  async signUpFromPaddle(req: Request, res: Response) {
-    const { user } = await this.authService.signUpFromPaddle(req.body);
-    ResponseHandler.success(res, user, 'Partial account created from Paddle.', 100, 201);
-  }
-
   async completeRegistration(req: Request, res: Response) {
     const { user, token } = await this.authService.completeRegistration(req.body);
     ResponseHandler.success(res, { user, token }, 'Registration completed successfully.');

@@ -1,17 +1,17 @@
 import { Router } from 'express';
 import { PaddleController } from '../controllers/paddle.controller';
 import { asyncWrapper } from '../utils/async-wrapper';
-import { jwtAuthGuard, rolesGuard } from '../middleware';
-import { ROLES } from '../constants';
+import { jwtAuthGuard, isAdmin } from '../middleware';
 
 const router = Router();
 
 const paddleController = new PaddleController();
 
-router.post('/webhooks', asyncWrapper(paddleController.handleWebhook.bind(paddleController)));
+router.post('/webhooks/creation', asyncWrapper(paddleController.handleCreationWebhook.bind(paddleController)));
+router.post('/webhooks/subscriptions', asyncWrapper(paddleController.handleSubscriptionWebhook.bind(paddleController)));
 router.get('/products', asyncWrapper(paddleController.getProducts.bind(paddleController)));
 
 router.use(jwtAuthGuard);
-router.use(rolesGuard(ROLES.PLATFORM_ADMIN));
+router.use(isAdmin);
 router.get('/transactions', asyncWrapper(paddleController.getTransactions.bind(paddleController)));
 export default router;

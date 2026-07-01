@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { AdvisorsController } from '../controllers/advisors.controller';
 import { asyncWrapper } from '../utils/async-wrapper';
-import { jwtAuthGuard, rolesGuard } from '../middleware';
-import { ROLES } from '../constants';
+import { jwtAuthGuard, isAdmin, isAdminOrAdvisor } from '../middleware';
 
 const router = Router();
 
@@ -12,7 +11,7 @@ router.use(jwtAuthGuard);
 
 router.get(
   '/',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCIAL_ADVISOR),
+  isAdminOrAdvisor,
   asyncWrapper(advisorsController.findAll.bind(advisorsController))
 );
 
@@ -20,19 +19,19 @@ router.get('/:id', asyncWrapper(advisorsController.findById.bind(advisorsControl
 
 router.post(
   '/',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
+  isAdmin,
   asyncWrapper(advisorsController.create.bind(advisorsController))
 );
 
 router.put(
   '/:id',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
+  isAdmin,
   asyncWrapper(advisorsController.update.bind(advisorsController))
 );
 
 router.patch(
   '/:id/toggle-availability',
-  rolesGuard(ROLES.PLATFORM_ADMIN, ROLES.FINANCE_OFFICER),
+  isAdmin,
   asyncWrapper(advisorsController.toggleAvailability.bind(advisorsController))
 );
 export default router;

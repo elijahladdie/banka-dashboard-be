@@ -74,7 +74,7 @@ docker-compose up -d
 | Platform Admin   | admin@banka.rw       | Admin@123 |
 | Finance Officer  | finance@banka.rw     | Admin@123 |
 | Financial Advisor| advisor@banka.rw     | Admin@123 |
-| Subscriber       | subscriber@banka.rw  | Admin@123 |
+| Client       | client@banka.rw  | Admin@123 |
 
 ## API Endpoints
 
@@ -110,7 +110,7 @@ docker-compose up -d
 
 ### Assignments
 - `GET /api/assignments` - List assignments
-- `POST /api/assignments/assign` - Assign subscriber to advisor
+- `POST /api/assignments/assign` - Assign client to advisor
 - `POST /api/assignments/:id/end` - End assignment
 
 ### Goals

@@ -10,7 +10,7 @@ export class SubscriptionsController {
   }
 
   async findAll(req: AuthenticatedRequest, res: Response) {
-    if (req.user?.role === 'FINANCIAL_ADVISOR') {
+    if (req.user?.roles?.includes('advisor')) {
       req.query.advisorId = req.user.userId;
     }
     const result = await this.subscriptionsService.findAll({ ...req.query, user: req?.user });

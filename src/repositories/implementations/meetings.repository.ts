@@ -18,7 +18,7 @@ export class MeetingsRepository implements IMeetingsRepository {
         ...params,
         include: {
           advisor: { include: { user: true } },
-          subscriber: true,
+          client: true,
         },
       }),
       prisma.meeting.count({ where: params.where }),

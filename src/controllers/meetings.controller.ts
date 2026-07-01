@@ -11,6 +11,7 @@ export class MeetingsController {
 
   async findAll(req: Request, res: Response) {
     const result = await this.meetingsService.findAll(req.query);
+    
     ResponseHandler.success(res, result, 'Meetings retrieved successfully.');
   }
 

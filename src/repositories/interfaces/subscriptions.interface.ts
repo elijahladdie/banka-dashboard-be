@@ -1,6 +1,16 @@
-import { Prisma, Subscription, User } from '@prisma/client';
+import { Prisma, Subscription } from '@prisma/client';
 
-export type SubscriptionWithUser = Subscription & { user: User };
+export type SubscriptionWithUser = Subscription & {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string | null;
+    status: string;
+    userRoles: { role: { slug: string } }[];
+  };
+};
 
 export interface ISubscriptionsRepository {
   findOne(where: Prisma.SubscriptionWhereInput): Promise<SubscriptionWithUser | null>;

@@ -1,17 +1,15 @@
 import jwt from 'jsonwebtoken';
-import { JWT_ACCESS_SECRET } from './constants';
+import { JWT_ACCESS_SECRET, PLAN_NAME_MAP, PLAN_FEATURES } from './constants';
 import { SubscriptionStatus } from '@prisma/client/edge';
 
 export const generateTokens = (
-    payload: Record<string, string>
+    payload: Record<string, string | string[]>
 ): string => jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
 
 export const normalizePaddleSubscription = (paddleEvent: any) => {
     const data = paddleEvent?.data ?? {};
-    const details = data?.details ?? data;
 
     const lineItem =
-        details?.line_items?.[0] ??
         data?.items?.[0];
 
     const product =
@@ -20,53 +18,38 @@ export const normalizePaddleSubscription = (paddleEvent: any) => {
         'ADVANCED';
 
     const billingPeriod =
-        data?.billing_period ?? details?.current_billing_period ?? {};
+        data?.billingPeriod ?? data?.currentBillingPeriod ?? {};
 
     const startsAt =
-        billingPeriod?.starts_at ??
-        details?.started_at ??
+        billingPeriod?.startsAt ??
+        data?.startedAt ??
         null;
 
     const endsAt =
-        billingPeriod?.ends_at ??
-        data?.next_billed_at ??
+        billingPeriod?.endsAt ??
+        data?.nextBilledAt ??
         null;
 
     const canceledAt =
-        details?.canceled_at ??
-        data?.canceled_at ??
+        data?.canceledAt ??
         null;
 
-    const trialStart =
-        details?.trial_started_at ??
-        (details?.status === 'trialing' ? startsAt : null);
-
-    const trialEnd =
-        details?.trial_ends_at ??
-        null;
-
-    const currency =
-        details?.totals?.currency_code ??
-        data?.currency_code ??
-        'USD';
-
-    const amount =
-        Number(details?.totals?.grand_total ?? 0);
     const status = mapPaddleStatus(
-        details?.status ?? data?.status ?? paddleEvent?.event_type
+        data?.status ?? paddleEvent?.eventType
     );
+    console.log("Normalized subscription data from Paddle webhook:===>", data.items?.[0])
     return {
         product: product?.toUpperCase(),
-        currency,
-        amount,
+        currency: data?.currencyCode ?? 'USD',
+        amount: Number(lineItem?.price?.unitPrice?.amount ?? 0),
         status,
         startsAt: startsAt ? new Date(startsAt) : null,
         endsAt: endsAt ? new Date(endsAt) : null,
         canceledAt: canceledAt ? new Date(canceledAt) : null,
-        trialStart: trialStart ? new Date(trialStart) : null,
-        trialEnd: trialEnd ? new Date(trialEnd) : null,
-        billingCycle: lineItem?.price?.billing_cycle ?? null,
-        collectionMode: data?.collection_mode ?? null,
+        trialStart: null,
+        trialEnd: null,
+        billingCycle: lineItem?.price?.billingCycle ?? null,
+        collectionMode: data?.collectionMode ?? null,
     };
 }
 export const resolveSubscriptionEvent = (eventType: string) => {
@@ -128,3 +111,43 @@ function mapPaddleStatus(status?: string): SubscriptionStatus {
             return "ACTIVE"; // safe fallback
     }
 }
+
+const getPlanFeatures = (planKey?: string) => {
+    const starterPlan = PLAN_FEATURES.find(plan => plan.name.toLowerCase() === 'starter');
+    const proPlan = PLAN_FEATURES.find(plan => plan.name.toLowerCase() === 'pro');
+    const advancedPlan = PLAN_FEATURES.find(plan => plan.name.toLowerCase() === 'advanced');
+
+    switch (planKey?.toUpperCase()) {
+        case 'STARTER':
+            return starterPlan?.features ?? [];
+        case 'PRO':
+            return [...(proPlan?.subtitle ? [proPlan?.subtitle] : []), ...(proPlan?.features ?? [])];
+        case 'ADVANCED':
+            return [...(advancedPlan?.subtitle ? [advancedPlan?.subtitle] : []), ...(advancedPlan?.features ?? [])];
+        default:
+            return [];
+    }
+};
+
+export const mapProductToClientResponse = (product: any, interval: string) => {
+    const planKey = PLAN_NAME_MAP[product.customData?.plan?.toLowerCase()] || PLAN_NAME_MAP[product.name?.toLowerCase()];
+    const selectedPrice = (product.prices || []).find((price: any) => price.billingCycle?.interval === interval);
+    if (!selectedPrice) return null;
+
+    return {
+        id: product.id,
+        name: product.name,
+        type: product.type,
+        description: product.description,
+        taxCategory: product.taxCategory,
+        imageUrl: product.imageUrl,
+        customData: product.customData,
+        status: product.status,
+        billingInterval: interval,
+        prices: [selectedPrice],
+        features: getPlanFeatures(planKey),
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+
+    };
+};

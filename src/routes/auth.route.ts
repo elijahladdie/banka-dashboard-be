@@ -9,7 +9,6 @@ import {
   signInSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  paddleSignUpSchema,
   completeRegistrationSchema,
 } from '../validators';
 
@@ -19,7 +18,6 @@ const authController = new AuthController();
 
 // Public routes with rate limiting
 router.post('/signup', authRateLimiter, validateRequest(signUpSchema), asyncWrapper(authController.signUp.bind(authController)));
-router.post('/signup/paddle', authRateLimiter, validateRequest(paddleSignUpSchema), asyncWrapper(authController.signUpFromPaddle.bind(authController)));
 router.post('/complete-registration', authRateLimiter, validateRequest(completeRegistrationSchema), asyncWrapper(authController.completeRegistration.bind(authController)));
 router.get('/pending-registration', authRateLimiter, asyncWrapper(authController.checkPendingRegistration.bind(authController)));
 router.post('/signin', authRateLimiter, validateRequest(signInSchema), asyncWrapper(authController.signIn.bind(authController)));

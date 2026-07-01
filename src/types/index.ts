@@ -1,10 +1,10 @@
-import { UserRole, UserStatus } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 import { Request } from 'express';
 
 interface JwtPayload {
   userId: string;
   email: string;
-  role: string;
+  roles: string[];
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -58,13 +58,15 @@ export interface CompleteRegistrationInput {
   email: string;
   phone: string;
   password: string;
+  firstName: string;
+  lastName: string;
 }
 
 export interface PendingRegistrationResult {
   exists: boolean;
   email?: string;
   fullName?: string;
-  registrationCompleted?: boolean;
+  isRegComplete?: boolean;
 }
 
 export interface SignInInput {
@@ -88,16 +90,16 @@ export interface TUserSelect {
   email: string,
   phoneNumber: string,
   status: UserStatus,
-  role: UserRole,
+  roles: { role: { slug: string } }[],
 }
 
 export interface AnalyticsOverview {
   users: {
     total: number;
-    subscribers: number;
+    clients: number;
     advisors: number;
     admins: number;
-    newSubscribersLast30Days: number;
+    newClientsLast30Days: number;
   };
 
   subscriptions: {
@@ -129,7 +131,7 @@ export interface AnalyticsOverview {
   };
 
   trends: {
-    subscribers: {
+    clients: {
       month: string;
       count: number;
     }[];

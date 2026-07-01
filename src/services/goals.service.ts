@@ -15,7 +15,7 @@ export class GoalsService {
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
     const where: Record<string, any> = {};
-    if (query.subscriberId) where.subscriberId = query.subscriberId;
+    if (query.clientId) where.clientId = query.clientId;
     if (query.status) where.status = query.status;
 
     const [goals, total] = await this.goalsRepository.findAll({ skip, take, orderBy, where })
@@ -29,11 +29,11 @@ export class GoalsService {
     return goal;
   }
 
-  async findBySubscriber(subscriberId: string, query: Record<string, any>): Promise<PaginatedResult<Goal>> {
+  async findByClient(clientId: string, query: Record<string, any>): Promise<PaginatedResult<Goal>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
-    const [goals, total] = await this.goalsRepository.findAll({ where: { subscriberId }, skip, take, orderBy });
+    const [goals, total] = await this.goalsRepository.findAll({ where: { clientId }, skip, take, orderBy });
 
     return paginateResult(goals, total, pagination);
   }

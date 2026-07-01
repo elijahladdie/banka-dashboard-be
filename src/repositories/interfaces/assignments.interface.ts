@@ -1,18 +1,18 @@
-import { Prisma, SubscriberAssignment } from '@prisma/client';
+import { Prisma, ClientAssignment } from '@prisma/client';
 
 export interface IAssignmentsRepository {
-  findById(id: string): Promise<SubscriberAssignment | null>;
-  findActiveBySubscriber(subscriberId: string): Promise<SubscriberAssignment | null>;
+  findById(id: string): Promise<ClientAssignment | null>;
+  findActiveByClient(clientId: string): Promise<ClientAssignment | null>;
   findByAdvisor(advisorId: string, params: {
     skip?: number;
     take?: number;
-  }): Promise<SubscriberAssignment[]>;
+  }): Promise<ClientAssignment[]>;
   findAll(params: {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     where?: Record<string, any>;
-  }): Promise<[SubscriberAssignment[], number]>;
-  create(data: Prisma.SubscriberAssignmentCreateInput): Promise<SubscriberAssignment>;
-  endAssignment(id: string): Promise<SubscriberAssignment>;
+  }): Promise<[ClientAssignment[], number]>;
+  create(data: Prisma.ClientAssignmentCreateInput): Promise<ClientAssignment>;
+  endAssignment(id: string): Promise<ClientAssignment>;
 }

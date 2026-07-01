@@ -13,7 +13,7 @@ export class NotesService {
     const { skip, take, orderBy } = getPrismaPagination(pagination);
 
     const where: Record<string, any> = { advisorId };
-    if (query.subscriberId) where.subscriberId = query.subscriberId;
+    if (query.clientId) where.clientId = query.clientId;
 
     const [notes, total] = await Promise.all([
       prisma.advisoryNote.findMany({ where, skip, take, orderBy }),
