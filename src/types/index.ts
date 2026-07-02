@@ -149,18 +149,16 @@ export interface AnalyticsOverview {
 }
 
 export interface PaddleProductQuery {
-  id?: string[];
-  after?: string;
-  per_page?: number;
-  include?: string[];
-  order_by?: string;
-  status?: string[];
-  tax_category?: string[];
   interval?: 'month' | 'year';
-  type?: 'custom' | 'standard';
 }
 
 export interface WebhookResult {
   handled: boolean;
   reason?: string;
+}
+
+export interface UpdateActivationInput {
+  customerId: string;
+  subscriptionId: string;
+  event: any;
 }

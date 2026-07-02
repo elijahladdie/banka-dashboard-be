@@ -1,8 +1,7 @@
-import bcrypt from 'bcryptjs';
 import { User } from '@prisma/client';
 import { SettingsRepository } from '../repositories/implementations/settings.repository';
 import { NotFoundError, ValidationError } from '../helpers';
-import { BCRYPT_SALT_ROUNDS } from '../constants/constants';
+import { hashPassword, verifyPassword } from '../helpers/auth.helper';
 
 export class SettingsService {
   private readonly settingsRepository: SettingsRepository;
@@ -16,30 +15,16 @@ export class SettingsService {
     return user;
   }
 
-  async updateProfile(userId: string, data: Partial<User>, actorId: string): Promise<User> {
-    const user = await this.getProfile(userId);
-
-    const updated = await this.settingsRepository.updateProfile(userId, data);
-
-    return updated;
+  async updateProfile(userId: string, data: Partial<User>, _actorId: string): Promise<User> {
+    await this.getProfile(userId);
+    return this.settingsRepository.updateProfile(userId, data);
   }
 
-  async changePassword(
-    userId: string,
-    currentPassword: string,
-    newPassword: string,
-    actorId: string
-  ): Promise<void> {
+  async changePassword(userId: string, currentPassword: string, newPassword: string, _actorId: string): Promise<void> {
     const user = await this.getProfile(userId);
-
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    if (!isPasswordValid) {
-      throw new ValidationError('Current password is incorrect.');
-    }
-
-    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
-    const passwordHash = await bcrypt.hash(newPassword, salt);
-
+    const valid = await verifyPassword(currentPassword, user.password);
+    if (!valid) throw new ValidationError('Current password is incorrect.');
+    const passwordHash = await hashPassword(newPassword);
     await this.settingsRepository.updatePassword(userId, passwordHash);
   }
 }

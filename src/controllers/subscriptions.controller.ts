@@ -10,10 +10,9 @@ export class SubscriptionsController {
   }
 
   async findAll(req: AuthenticatedRequest, res: Response) {
-    if (req.user?.roles?.includes('advisor')) {
-      req.query.advisorId = req.user.userId;
-    }
-    const result = await this.subscriptionsService.findAll({ ...req.query, user: req?.user });
+    const query: Record<string, any> = { ...req.query, user: req.user };
+    if (req.user?.roles?.includes('advisor')) query.advisorId = req.user.userId;
+    const result = await this.subscriptionsService.findAll(query);
     ResponseHandler.success(res, result, 'Subscriptions retrieved successfully.');
   }
 
@@ -25,31 +24,23 @@ export class SubscriptionsController {
   async findByUserId(req: AuthenticatedRequest, res: Response) {
     const userId = req.params.userId || req.user!.userId;
     const subscription = await this.subscriptionsService.findByUserId(userId);
-    const message = subscription ? 'Subscription retrieved successfully.' : 'No subscription found.';
-    ResponseHandler.success(res, subscription, message);
+    ResponseHandler.success(res, subscription, subscription ? 'Subscription retrieved successfully.' : 'No subscription found.');
   }
 
   async create(req: AuthenticatedRequest, res: Response) {
     const subscription = await this.subscriptionsService.create(
-      { ...req.body, userId: req.user!.userId },
-      req.user!.userId
+      { ...req.body, userId: req.user!.userId }, req.user!.userId
     );
     ResponseHandler.success(res, subscription, 'Subscription created successfully.', 100, 201);
   }
 
   async update(req: AuthenticatedRequest, res: Response) {
-    const subscription = await this.subscriptionsService.update(
-      req.params.id,
-      req.body
-    );
+    const subscription = await this.subscriptionsService.update(req.params.id, req.body);
     ResponseHandler.success(res, subscription, 'Subscription updated successfully.');
   }
 
   async cancel(req: AuthenticatedRequest, res: Response) {
-    const subscription = await this.subscriptionsService.cancelSubscription(
-      req.params.id,
-      req.user!.userId
-    );
+    const subscription = await this.subscriptionsService.cancelSubscription(req.params.id, req.user!.userId);
     ResponseHandler.success(res, subscription, 'Subscription canceled successfully.');
   }
 }

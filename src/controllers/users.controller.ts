@@ -16,14 +16,12 @@ export class UsersController {
 
   async findById(req: Request, res: Response) {
     const user = await this.usersService.findById(req.params.id);
-    const { password, ...userWithoutPassword } = user;
-    ResponseHandler.success(res, userWithoutPassword, 'User retrieved successfully.');
+    ResponseHandler.success(res, user, 'User retrieved successfully.');
   }
 
   async update(req: AuthenticatedRequest, res: Response) {
     const user = await this.usersService.update(req.params.id, req.body, req.user!.userId);
-    const { password, ...userWithoutPassword } = user;
-    ResponseHandler.success(res, userWithoutPassword, 'User updated successfully.');
+    ResponseHandler.success(res, user, 'User updated successfully.');
   }
 
   async delete(req: AuthenticatedRequest, res: Response) {

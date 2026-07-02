@@ -3,6 +3,7 @@ import { NotificationsRepository } from '../repositories/implementations/notific
 import { NotFoundError } from '../helpers';
 import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { buildNotificationsFilter } from '../helpers/query-builder.helper';
 
 export class NotificationsService {
   private readonly notificationsRepository: NotificationsRepository;
@@ -13,14 +14,8 @@ export class NotificationsService {
   async findByUser(userId: string, query: Record<string, any>): Promise<PaginatedResult<Notification>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-
-    const where: Record<string, any> = {};
-    if (query.unreadOnly === 'true') where.readAt = null;
-    if (query.type) where.type = query.type;
-    where.userId = userId;
-
+    const where = { ...buildNotificationsFilter(query), userId };
     const [notifications, total] = await this.notificationsRepository.findAll({ skip, take, orderBy, where });
-
     return paginateResult(notifications, total, pagination);
   }
 
@@ -44,8 +39,7 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    return this.notificationsRepository.findAll({
-      where: { userId, readAt: null }
-    }).then(([notifications, _]) => notifications.length);
+    const [notifications] = await this.notificationsRepository.findAll({ where: { userId, readAt: null } });
+    return notifications.length;
   }
 }

@@ -3,6 +3,7 @@ import { ServiceRequestsRepository } from '../repositories/implementations/servi
 import { NotFoundError } from '../helpers';
 import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { buildServiceRequestsFilter } from '../helpers/query-builder.helper';
 
 export class ServiceRequestsService {
   private readonly repository: ServiceRequestsRepository;
@@ -13,13 +14,7 @@ export class ServiceRequestsService {
   async findAll(query: Record<string, any>): Promise<PaginatedResult<ServiceRequest>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-
-    const where: Record<string, any> = {};
-    if (query.clientId) where.clientId = query.clientId;
-    if (query.advisorId) where.advisorId = query.advisorId;
-    if (query.status) where.status = query.status;
-    if (query.serviceType) where.serviceType = query.serviceType;
-
+    const where = buildServiceRequestsFilter(query);
     const [requests, total] = await this.repository.findAll({ skip, take, orderBy, where });
     return paginateResult(requests, total, pagination);
   }
@@ -48,16 +43,14 @@ export class ServiceRequestsService {
     return this.repository.create({ ...data, clientId });
   }
 
-  async update(id: string, data: Partial<ServiceRequest>, actorId: string): Promise<ServiceRequest> {
+  async update(id: string, data: Partial<ServiceRequest>, _actorId: string): Promise<ServiceRequest> {
     await this.findById(id);
     return this.repository.update(id, data);
   }
 
   async respond(id: string, status: string, advisorResponse?: string): Promise<ServiceRequest> {
     await this.findById(id);
-    const data: any = { status };
-    if (advisorResponse) data.advisorResponse = advisorResponse;
-    return this.repository.update(id, data);
+    return this.repository.update(id, { status: status as any, ...(advisorResponse ? { advisorResponse } : {}) });
   }
 
   async linkMeeting(id: string, meetingId: string): Promise<ServiceRequest> {

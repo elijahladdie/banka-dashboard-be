@@ -3,6 +3,8 @@ import { GoalsRepository } from '../repositories/implementations/goals.repositor
 import { NotFoundError } from '../helpers';
 import { PaginatedResult } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { buildGoalsFilter } from '../helpers/query-builder.helper';
+import { calculateGoalStatus } from '../helpers/goals.helper';
 
 export class GoalsService {
   private readonly goalsRepository: GoalsRepository;
@@ -13,13 +15,8 @@ export class GoalsService {
   async findAll(query: Record<string, any>): Promise<PaginatedResult<Goal>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-
-    const where: Record<string, any> = {};
-    if (query.clientId) where.clientId = query.clientId;
-    if (query.status) where.status = query.status;
-
-    const [goals, total] = await this.goalsRepository.findAll({ skip, take, orderBy, where })
-
+    const where = buildGoalsFilter(query);
+    const [goals, total] = await this.goalsRepository.findAll({ skip, take, orderBy, where });
     return paginateResult(goals, total, pagination);
   }
 
@@ -32,41 +29,27 @@ export class GoalsService {
   async findByClient(clientId: string, query: Record<string, any>): Promise<PaginatedResult<Goal>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-
     const [goals, total] = await this.goalsRepository.findAll({ where: { clientId }, skip, take, orderBy });
-
     return paginateResult(goals, total, pagination);
   }
 
-  async create(data: Partial<Goal>, actorId: string): Promise<Goal> {
-    const goal = await this.goalsRepository.create(data as any);
-    return goal;
+  async create(data: Partial<Goal>, _actorId: string): Promise<Goal> {
+    return this.goalsRepository.create(data as any);
   }
 
-  async update(id: string, data: Partial<Goal>, actorId: string): Promise<Goal> {
+  async update(id: string, data: Partial<Goal>, _actorId: string): Promise<Goal> {
     await this.findById(id);
-    const updated = await this.goalsRepository.update(id, data as any);
-    return updated;
+    return this.goalsRepository.update(id, data as any);
   }
 
-  async updateProgress(id: string, currentAmount: number, actorId: string): Promise<Goal> {
+  async updateProgress(id: string, currentAmount: number, _actorId: string): Promise<Goal> {
     const goal = await this.findById(id);
-
-    const targetAmount = goal.targetAmount ? Number(goal.targetAmount) : null;
-    const data: any = { currentAmount };
-    if (targetAmount && currentAmount >= targetAmount) {
-      data.status = 'COMPLETED';
-    } else if (goal.status === 'NOT_STARTED' && currentAmount > 0) {
-      data.status = 'IN_PROGRESS';
-    }
-
-    const updated = await this.goalsRepository.update(id, data);
-    return updated;
+    const updateData = calculateGoalStatus(goal, currentAmount);
+    return this.goalsRepository.update(id, updateData);
   }
 
-  async softDelete(id: string, actorId: string): Promise<Goal> {
+  async softDelete(id: string, _actorId: string): Promise<Goal> {
     await this.findById(id);
-    const deleted = await this.goalsRepository.softDelete(id);
-    return deleted;
+    return this.goalsRepository.softDelete(id);
   }
 }
