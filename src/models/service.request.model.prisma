@@ -1,0 +1,15 @@
+model ServiceRequest {
+  id              String        @id @default(uuid()) @db.Uuid
+  clientId        String        @db.Uuid
+  advisorId       String        @db.Uuid
+  serviceType     String        @db.VarChar(255)
+  description     String?
+  status          RequestStatus @default(PENDING)
+  meetingId       String?       @unique @db.Uuid
+  advisorResponse String?
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(6)
+  client          User          @relation("ClientRequests", fields: [clientId], references: [id], onDelete: Cascade)
+  advisor         Advisor       @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  meeting         Meeting?      @relation("ServiceRequestMeeting", fields: [meetingId], references: [id])
+}

@@ -19,6 +19,7 @@ model User {
   userRoles    UserRole[]
   goals                 Goal[]
   meetingsAsClient  Meeting[]              @relation("ClientMeetings")
+  serviceRequests   ServiceRequest[]       @relation("ClientRequests")
   notifications         Notification[]
   assignmentsCreated    ClientAssignment[] @relation("AssignedBy")
   subscription          Subscription?

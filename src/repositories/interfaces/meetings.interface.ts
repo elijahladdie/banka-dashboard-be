@@ -10,4 +10,5 @@ export interface IMeetingsRepository {
   }): Promise<[Meeting[], number]>;
   create(data: Partial<Meeting>): Promise<Meeting>;
   update(id: string, data: Partial<Meeting>): Promise<Meeting>;
+  delete(id: string): Promise<Meeting>;
 }

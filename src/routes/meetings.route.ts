@@ -19,5 +19,6 @@ router.get('/:id', asyncWrapper(meetingsController.findById.bind(meetingsControl
 router.post('/', asyncWrapper(meetingsController.create.bind(meetingsController)));
 router.put('/:id', asyncWrapper(meetingsController.update.bind(meetingsController)));
 router.patch('/:id/status', asyncWrapper(meetingsController.updateStatus.bind(meetingsController)));
+router.delete('/:id', asyncWrapper(meetingsController.delete.bind(meetingsController)));
 
 export default router;

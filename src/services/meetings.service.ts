@@ -48,4 +48,9 @@ export class MeetingsService {
     const updated = await this.meetingsRepository.update(id, { status });
     return updated;
   }
+
+  async delete(id: string, actorId: string): Promise<void> {
+    await this.findById(id);
+    await this.meetingsRepository.delete(id);
+  }
 }

@@ -29,4 +29,9 @@ export class NotesController {
     const note = await this.notesService.update(req.params.id, req.body);
     ResponseHandler.success(res, note, 'Note updated successfully.');
   }
+
+  async delete(req: AuthenticatedRequest, res: Response) {
+    await this.notesService.delete(req.params.id);
+    ResponseHandler.success(res, null, 'Note deleted successfully.');
+  }
 }

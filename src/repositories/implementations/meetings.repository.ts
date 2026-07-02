@@ -32,4 +32,8 @@ export class MeetingsRepository implements IMeetingsRepository {
   async update(id: string, data: Partial<Meeting>): Promise<Meeting> {
     return prisma.meeting.update({ where: { id }, data });
   }
+
+  async delete(id: string): Promise<Meeting> {
+    return prisma.meeting.delete({ where: { id } });
+  }
 }

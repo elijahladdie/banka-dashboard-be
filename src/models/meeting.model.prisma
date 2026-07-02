@@ -13,4 +13,5 @@ model Meeting {
   updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
   advisor      Advisor       @relation("AdvisorMeetings", fields: [advisorId], references: [id], onDelete: Cascade)
   client   User          @relation("ClientMeetings", fields: [clientId], references: [id], onDelete: Cascade)
+  serviceRequest ServiceRequest? @relation("ServiceRequestMeeting")
 }

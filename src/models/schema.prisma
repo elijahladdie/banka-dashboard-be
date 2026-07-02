@@ -61,3 +61,11 @@ enum NotificationType {
   ERROR
   REMINDER
 }
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}

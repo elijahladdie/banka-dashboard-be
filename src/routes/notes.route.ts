@@ -29,4 +29,10 @@ router.put(
   asyncWrapper(notesController.update.bind(notesController))
 );
 
+router.delete(
+  '/:id',
+  isAdvisor,
+  asyncWrapper(notesController.delete.bind(notesController))
+);
+
 export default router;
