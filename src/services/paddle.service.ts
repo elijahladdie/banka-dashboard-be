@@ -70,23 +70,6 @@ export class PaddleService {
     this.subscriptionsRepository = new SubscriptionsRepository();
   }
 
-  // ══════════════════════════════════════════════
-  // Phase 2: Centralized Active Subscription Detection
-  // ══════════════════════════════════════════════
-
-  /**
-   * Determines whether a subscription should be considered "active" for
-   * entitlement and business-rule purposes.
-   *
-   * ACTIVE when:
-   * - status = ACTIVE, TRIALING, or PAST_DUE (if business allows)
-   * - endsAt is in the future (or null / unlimited)
-   *
-   * NOT active when:
-   * - status = CANCELED and period has ended
-   * - status = EXPIRED
-   * - fully terminated / permanently unpaid
-   */
   isSubscriptionActive(subscription: {
     status: string;
     endsAt?: Date | string | null;
@@ -885,14 +868,8 @@ export class PaddleService {
   async listProducts(query: PaddleProductQuery = {}) {
     try {
       const params: Record<string, any> = {};
-      if (query.id?.length) params.id = query.id;
-      if (query.after) params.after = query.after;
-      if (query.per_page) params.perPage = query.per_page;
+
       if (query.include?.length) params.include = query.include;
-      if (query.order_by) params.orderBy = query.order_by;
-      if (query.status?.length) params.status = query.status;
-      if (query.tax_category?.length) params.taxCategory = query.tax_category;
-      if (query.type) params.type = query.type;
       if (query.interval) params.interval = query.interval;
 
       const products = this.paddle.products.list(params);
@@ -922,7 +899,7 @@ export class PaddleService {
         ? 'month'
         : 'year';
 
-    const products = await this.listProducts({ ...query, include: ['prices'] });
+    const products = await this.listProducts({ ...query, include: ['prices'] }) ;
 
     return (products || [])
       .map((product: any) => mapProductToClientResponse(product, interval))
@@ -967,10 +944,6 @@ export class PaddleService {
       throw this.handlePaddleError(error, 'Failed to fetch transactions from Paddle');
     }
   }
-
-  // ══════════════════════════════════════════════
-  // Phase 8-10: Webhook Processing — All routed through reconciliation
-  // ══════════════════════════════════════════════
 
   async processCreationWebhook(rawBody: string, signature: string): Promise<void> {
     if (!rawBody || !signature) {

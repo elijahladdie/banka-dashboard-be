@@ -7,7 +7,7 @@ const router = Router();
 
 const paddleController = new PaddleController();
 
-router.post('/webhooks/creation', asyncWrapper(paddleController.handleCreationWebhook.bind(paddleController)));
+router.post('/webhooks/creation', asyncWrapper(paddleController.handleCreationWebhook.bind(paddleController)));// change names
 router.post('/webhooks/subscriptions', asyncWrapper(paddleController.handleSubscriptionWebhook.bind(paddleController)));
 router.get('/products', asyncWrapper(paddleController.getProducts.bind(paddleController)));
 
