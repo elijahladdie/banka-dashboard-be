@@ -47,17 +47,6 @@ enum ReportType {
   CUSTOM
 }
 
-enum BillingType {
-  included
-  usage_based
-}
-
-enum UsageStatus {
-  PENDING
-  BILLED
-  VOID
-}
-
 enum MeetingStatus {
   SCHEDULED
   COMPLETED

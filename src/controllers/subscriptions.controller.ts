@@ -24,10 +24,9 @@ export class SubscriptionsController {
 
   async findByUserId(req: AuthenticatedRequest, res: Response) {
     const userId = req.params.userId || req.user!.userId;
-    // Return enriched entitlement data — the canonical subscription/my response
-    const entitlements = await this.subscriptionsService.getUserEntitlements(userId);
-    const message = entitlements ? 'Subscription retrieved successfully.' : 'No subscription found.';
-    ResponseHandler.success(res, entitlements, message);
+    const subscription = await this.subscriptionsService.findByUserId(userId);
+    const message = subscription ? 'Subscription retrieved successfully.' : 'No subscription found.';
+    ResponseHandler.success(res, subscription, message);
   }
 
   async create(req: AuthenticatedRequest, res: Response) {
@@ -53,5 +52,4 @@ export class SubscriptionsController {
     );
     ResponseHandler.success(res, subscription, 'Subscription canceled successfully.');
   }
-
 }
