@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { AdvisorsController } from '../controllers/advisors.controller';
-import { asyncWrapper } from '../utils/async-wrapper';
+import { asyncWrapper } from '../middleware/async-wrapper';
 import { jwtAuthGuard, isAdmin, isAdminOrAdvisor } from '../middleware';
 
 const router = Router();

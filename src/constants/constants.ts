@@ -5,7 +5,6 @@ config();
 
 const env = cleanEnv(process.env, {
   CORS_ORIGIN: str(),
-  COOKIE_SECRET: str(),
   NODE_ENV: str({ choices: ["development", "production", "test"] }),
   PORT: num(),
   PADDLE_CREATION_WEBHOOK_SECRET: str(),
@@ -27,7 +26,6 @@ const env = cleanEnv(process.env, {
 });
 
 export const CORS_ORIGIN = env.CORS_ORIGIN;
-export const COOKIE_SECRET = env.COOKIE_SECRET;
 export const NODE_ENV = env.NODE_ENV;
 export const PORT = env.PORT;
 export const PADDLE_CREATION_WEBHOOK_SECRET = env.PADDLE_CREATION_WEBHOOK_SECRET;
@@ -46,6 +44,7 @@ export const PADDLE_URL = env.PADDLE_URL;
 export const PADDLE_API_KEY = env.PADDLE_API_KEY;
 export const PADDLE_API_ENV = env.PADDLE_API_ENV as Environment;
 export const DATABASE_URL = env.DATABASE_URL;
+
 export const PLAN_NAME_MAP: Record<string, string> = {
   starter: 'STARTER',
   pro: 'PRO',

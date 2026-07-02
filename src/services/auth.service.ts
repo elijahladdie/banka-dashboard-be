@@ -17,8 +17,8 @@ import {
   ValidationError,
 } from '../helpers';
 import { TOKEN } from '../constants';
-import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET } from '../utils/constants';
-import { generateTokens } from '../utils/helper';
+import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET } from '../constants/constants';
+import { generateTokens } from '../helpers/helper';
 import logger from '../utils/logger';
 
 export class AuthService {

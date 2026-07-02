@@ -1,5 +1,5 @@
 import winston from "winston";
-import { NODE_ENV } from "./constants";
+import { NODE_ENV } from "../constants/constants";
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 

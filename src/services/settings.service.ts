@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '@prisma/client';
 import { SettingsRepository } from '../repositories/implementations/settings.repository';
 import { NotFoundError, ValidationError } from '../helpers';
-import { BCRYPT_SALT_ROUNDS } from '../utils/constants';
+import { BCRYPT_SALT_ROUNDS } from '../constants/constants';
 
 export class SettingsService {
   private readonly settingsRepository: SettingsRepository;

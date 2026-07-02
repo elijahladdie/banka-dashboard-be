@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest } from '../types';
 import { UnauthorizedError } from '../helpers';
-import { JWT_ACCESS_SECRET } from '../utils/constants';
+import { JWT_ACCESS_SECRET } from '../constants/constants';
 
 export function jwtAuthGuard(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;

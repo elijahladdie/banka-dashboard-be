@@ -7,7 +7,7 @@ import { globalRateLimiter } from './middleware/rateLimiter';
 import logger from './utils/logger';
 import { ResponseHandler } from './utils/response-handler';
 import router from './routes';
-import { CORS_ORIGIN, NODE_ENV } from './utils/constants';
+import { CORS_ORIGIN, NODE_ENV } from './constants/constants';
 
 const app = express();
 

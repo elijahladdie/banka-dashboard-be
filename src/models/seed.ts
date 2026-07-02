@@ -5,6 +5,7 @@ import logger from '../utils/logger';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const connectionString = process.env.DATABASE_URL!;
+const password = process.env.SEED_PASSWORD || 'Admin@123';
 const adapter = new PrismaPg(connectionString);
 const prisma = new PrismaClient({ adapter });
 
@@ -12,7 +13,7 @@ async function main() {
   logger.info('Seeding database...');
 
   const salt = await bcrypt.genSalt(12);
-  const passwordHash = await bcrypt.hash('Admin@123', salt);
+  const passwordHash = await bcrypt.hash(password, salt);
 
   // Upsert Role records
   const adminRole = await prisma.role.upsert({
@@ -163,7 +164,7 @@ async function main() {
 
   logger.info('Database seeded successfully!');
   logger.info('Default credentials:');
-  logger.info('  All accounts: password = "Admin@123"');
+  logger.info('  All accounts: password = "%s"', password);
   logger.info('  Admin: admin@banka.rw');
   logger.info('  Finance: finance@banka.rw');
   logger.info('  Advisor: advisor@banka.rw');

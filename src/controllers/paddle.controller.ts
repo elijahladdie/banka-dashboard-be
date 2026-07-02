@@ -29,7 +29,7 @@ export class PaddleController {
   }
 
   async handleSubscriptionWebhook(req: Request, res: Response) {
-
+  
     ResponseHandler.success(res, { received: true }, 'Webhook received successfully.');
 
     const rawBody: string = (req as any).rawBody || '';

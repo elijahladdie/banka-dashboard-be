@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { ResponseHandler } from './response-handler';
-import { HttpError } from './http-error';
-import { mapPrismaError } from './map-prisma-error';
-import logger from './logger';
+import { ResponseHandler } from '../utils/response-handler';
+import { HttpError } from '../utils/http-error';
+import { mapPrismaError } from '../utils/map-prisma-error';
+import logger from '../utils/logger';
 
 export function asyncWrapper(fn: (request: Request, response: Response) => Promise<any>) {
   return async (request: Request, reply: Response, _next: NextFunction) => {

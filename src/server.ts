@@ -4,7 +4,7 @@ dotenv.config();
 import app from './app';
 import logger from './utils/logger';
 import prisma from './utils/prisma';
-import { PORT, NODE_ENV } from './utils/constants';
+import { PORT, NODE_ENV } from './constants/constants';
 
 async function main() {
   try {

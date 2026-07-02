@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { UsersController } from '../controllers/users.controller';
-import { asyncWrapper } from '../utils/async-wrapper';
+import { asyncWrapper } from '../middleware/async-wrapper';
 import { jwtAuthGuard, isAdmin } from '../middleware';
 
 const router = Router();

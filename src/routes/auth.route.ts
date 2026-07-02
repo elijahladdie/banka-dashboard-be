@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
-import { asyncWrapper } from '../utils/async-wrapper';
+import { asyncWrapper } from '../middleware/async-wrapper';
 import { jwtAuthGuard } from '../middleware';
 import { validateRequest } from '../middleware/validateRequest';
 import { authRateLimiter } from '../middleware/rateLimiter';

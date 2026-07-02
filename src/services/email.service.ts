@@ -1,6 +1,6 @@
 import nodemailer, { SendMailOptions } from 'nodemailer';
 import { Address } from 'nodemailer/lib/mailer';
-import { NODE_ENV, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, DASHBOARD_URL } from '../utils/constants';
+import { NODE_ENV, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, DASHBOARD_URL } from '../constants/constants';
 import logger from '../utils/logger';
 
 function createTransporter(): nodemailer.Transporter {

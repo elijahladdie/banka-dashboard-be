@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { MeetingsController } from '../controllers/meetings.controller';
-import { asyncWrapper } from '../utils/async-wrapper';
+import { asyncWrapper } from '../middleware/async-wrapper';
 import { jwtAuthGuard } from '../middleware';
 
 const router = Router();

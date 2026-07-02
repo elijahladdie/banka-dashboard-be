@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import { RateLimitError } from '../helpers';
-import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS } from '../utils/constants';
+import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS } from '../constants/constants';
 
 export const globalRateLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
