@@ -26,7 +26,6 @@ export class PaddleController {
   }
 
   async subscriptionActivation(req: Request, res: Response) {
-
     ResponseHandler.success(res, { received: true }, 'Webhook received successfully.');
     await this.paddleService.subscriptionActivation(req.body);
   }

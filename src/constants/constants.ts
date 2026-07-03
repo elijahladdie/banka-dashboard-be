@@ -11,8 +11,6 @@ const env = cleanEnv(process.env, {
   ACTIVATION_WEBHOOK_SECRET: str(),
   JWT_ACCESS_SECRET: str(),
   PADDLE_API_ENV: str({ choices: ["sandbox", "production"], default: "sandbox" }),
-  RATE_LIMIT_WINDOW_MS: num(),
-  RATE_LIMIT_MAX_REQUESTS: num(),
   BCRYPT_SALT_ROUNDS: num(),
   SMTP_HOST: str(),
   SMTP_PORT: num(),
@@ -31,8 +29,6 @@ export const PORT = env.PORT;
 export const SUB_CREATION_WEBHOOK_SECRET = env.SUB_CREATION_WEBHOOK_SECRET;
 export const ACTIVATION_WEBHOOK_SECRET = env.ACTIVATION_WEBHOOK_SECRET;
 export const JWT_ACCESS_SECRET = env.JWT_ACCESS_SECRET;
-export const RATE_LIMIT_WINDOW_MS = env.RATE_LIMIT_WINDOW_MS;
-export const RATE_LIMIT_MAX_REQUESTS = env.RATE_LIMIT_MAX_REQUESTS;
 export const BCRYPT_SALT_ROUNDS = env.BCRYPT_SALT_ROUNDS;
 export const SMTP_HOST = env.SMTP_HOST;
 export const SMTP_PORT = env.SMTP_PORT;

@@ -1,5 +1,5 @@
 import { UserStatus } from '@prisma/client';
-import { Request } from 'express';
+import { NextFunction, Request, Response } from 'express';
 
 interface JwtPayload {
   userId: string;
@@ -162,3 +162,8 @@ export interface UpdateActivationInput {
   subscriptionId: string;
   event: any;
 }
+export type AsyncFunction = (
+  request: Request,
+  response: Response,
+  next: NextFunction,
+) => Promise<any>;

@@ -1,14 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { JWT_ACCESS_SECRET, PLAN_NAME_MAP, PLAN_FEATURES } from '../constants/constants';
 import { SubscriptionStatus } from '@prisma/client';
-import { Paddle } from '@paddle/paddle-node-sdk';
 
 export const generateTokens = (
     payload: Record<string, string | string[]>
 ): string => jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
 
-export const normalizePaddleSubscription = (paddleEvent: any) => {
-    const data = paddleEvent?.data ?? {};
+export const normalizePaddleSubscription = (event: any) => {
+    const data = event?.data ?? {};
 
     const lineItem =
         data?.items?.[0];
@@ -35,10 +34,9 @@ export const normalizePaddleSubscription = (paddleEvent: any) => {
         data?.canceledAt ??
         null;
 
-    const status = mapPaddleStatus(
-        data?.status ?? paddleEvent?.eventType
+    const status = mapEventStatus(
+        data?.status ?? event?.eventType
     );
-    console.log("Normalized subscription data from Paddle webhook:===>", data.items?.[0])
     return {
         product: product?.toUpperCase(),
         currency: data?.currencyCode ?? 'USD',
@@ -53,35 +51,8 @@ export const normalizePaddleSubscription = (paddleEvent: any) => {
         collectionMode: data?.collectionMode ?? null,
     };
 }
-export const resolveSubscriptionEvent = (eventType: string) => {
-    switch (eventType) {
-        case 'transaction.completed':
-            return 'PAYMENT_RECEIVED';
 
-        case 'subscription.created':
-            return 'SUBSCRIPTION_CREATED';
-
-        case 'subscription.updated':
-            return 'SUBSCRIPTION_UPDATED';
-
-        case 'subscription.canceled':
-            return 'SUBSCRIPTION_CANCELED';
-
-        case 'subscription.paused':
-            return 'SUBSCRIPTION_PAUSED';
-
-        case 'subscription.resumed':
-            return 'SUBSCRIPTION_RESUMED';
-
-        case 'subscription.trialing':
-            return 'SUBSCRIPTION_TRIAL';
-
-        default:
-            return 'SUBSCRIPTION_UPDATED';
-    }
-}
-
-function mapPaddleStatus(status?: string): SubscriptionStatus {
+function mapEventStatus(status?: string): SubscriptionStatus {
     const s = (status ?? "").toLowerCase();
 
     switch (s) {
@@ -109,7 +80,7 @@ function mapPaddleStatus(status?: string): SubscriptionStatus {
             return "EXPIRED";
 
         default:
-            return "ACTIVE"; // safe fallback
+            return "ACTIVE";
     }
 }
 

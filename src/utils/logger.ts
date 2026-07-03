@@ -3,7 +3,6 @@ import { NODE_ENV } from "../constants/constants";
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 
-// Custom log format for dev
 const devFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
   const metaString = Object.keys(meta).length
     ? `\nMETA: ${JSON.stringify(meta, null, 2)}`
@@ -12,7 +11,6 @@ const devFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
   return `[${timestamp}] [${level}] ${stack || message}${metaString}`;
 });
 
-// Base logger config
 const logger = winston.createLogger({
   level: NODE_ENV === "production" ? "info" : "debug",
   format: combine(
@@ -30,21 +28,17 @@ const logger = winston.createLogger({
     }),
   ],
 });
+logger.add(
+  new winston.transports.File({
+    filename: "logs/error.log",
+    level: "error",
+  })
+);
 
-// Optional: file logging in production
-if (NODE_ENV === "production") {
-  logger.add(
-    new winston.transports.File({
-      filename: "logs/error.log",
-      level: "error",
-    })
-  );
-
-  logger.add(
-    new winston.transports.File({
-      filename: "logs/combined.log",
-    })
-  );
-}
+logger.add(
+  new winston.transports.File({
+    filename: "logs/combined.log",
+  })
+);
 
 export default logger;

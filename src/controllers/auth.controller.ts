@@ -44,6 +44,7 @@ export class AuthController {
   }
 
   async getMe(req: AuthenticatedRequest, res: Response) {
+    
     ResponseHandler.success(res, { user: req.user }, 'User profile retrieved.');
   }
 }

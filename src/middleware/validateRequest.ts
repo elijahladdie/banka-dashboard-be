@@ -30,20 +30,19 @@ export function validateRequest(schema: ZodSchema) {
 }
 
 
-export const verifyCreationSignature = async (req: Request, res: Response): Promise<CustomerCreatedEvent> => {
+export const verifyCreationSignature = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 
   const rawBody: string = (req as any).rawBody || '';
   const signature = req.headers['paddle-signature'] as string || '';
   const event = await PaddleCreation.webhooks.unmarshal(rawBody, SUB_CREATION_WEBHOOK_SECRET, signature) as CustomerCreatedEvent;
   req.body = event;
-  return event;
+  next();
 }
 
-export const verifyActivationSignature = async (req: Request, res: Response): Promise<any> => {
+export const verifyActivationSignature = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   const rawBody: string = (req as any).rawBody || '';
   const signature = req.headers['paddle-signature'] as string || '';
-  logger.info('Activation event type: ~~~~~~~~~~~', JSON.parse(rawBody)?.data?.event_type);
   const event = await PaddleActivation.webhooks.unmarshal(rawBody, ACTIVATION_WEBHOOK_SECRET, signature);
   req.body = event;
-  return event;
+  next();
 }

@@ -110,9 +110,6 @@ function buildRegistrationEmailHtml(fullName: string, completionUrl: string): st
 </html>`;
 }
 
-/**
- * Send a registration-completion email with a link to set password and finish signup.
- */
 type RegistrationEmailOptions = {
   email: string;
   token: string;
