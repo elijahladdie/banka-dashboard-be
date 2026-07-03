@@ -20,18 +20,6 @@ export class PaddleService {
     this.subscriptionsRepository = new SubscriptionsRepository();
   }
 
-  async syncSubscriptionFromPaddle({ customerId, subscriptionId, event }: UpdateActivationInput) {
-    const sub = await this.subscriptionsRepository.findOne({ customerId });
-    if (!sub) return null;
-    const normalized = normalizePaddleSubscription(event);
-    await this.subscriptionsRepository.update(sub.id, {
-      subscriptionId, plan: normalized.product, status: normalized.status,
-      startsAt: normalized.startsAt, endsAt: normalized.endsAt,
-      billingInterval: normalized.billingCycle?.interval || 'month',
-    });
-    return true;
-  }
-
   async updateActivation({ customerId, subscriptionId, event }: any) {
     const subscription = await this.subscriptionsRepository.findOne({ customerId });
     if (!subscription) return null;
@@ -114,6 +102,7 @@ export class PaddleService {
         case 'subscription.canceled':
           return this.cancelSubscription(payload);
         default:
+          logger.info(`[paddle-webhook] Unhandled subscription event type: ${event.eventType}`);
           return { handled: true, reason: `Subscription event acknowledged: ${event.eventType}` };
       }
     } catch (err) {
@@ -122,10 +111,27 @@ export class PaddleService {
     }
   }
 
+
+
+  async getTransactions(query: Record<string, any>) {
+    const after = query.after as string | undefined;
+    const perPage = query.per_page ? parseInt(query.per_page as string, 10) : undefined;
+    const status = query.status as string | undefined;
+    return this.listTransactions({ after, per_page: perPage, status });
+  }
+
   private async syncActivatedSubscription({ customerId, subscriptionId, event }: { customerId: string; subscriptionId: string; event: any }): Promise<void> {
     try {
-      await this.syncSubscriptionFromPaddle({ customerId, subscriptionId, event });
+      const sub = await this.subscriptionsRepository.findOne({ customerId });
+      if (!sub) return;
+      const normalized = normalizePaddleSubscription(event);
+      await this.subscriptionsRepository.update(sub.id, {
+        subscriptionId, plan: normalized.product, status: normalized.status,
+        startsAt: normalized.startsAt, endsAt: normalized.endsAt,
+        billingInterval: normalized.billingCycle?.interval || 'month',
+      });
       logger.info(`[paddle-webhook] Subscription event processed: ${event.eventType} for customerId: ${customerId}`);
+      return;
     } catch (err) {
       logger.error(`[paddle-webhook] Error processing subscription event: ${event.eventType} for customerId: ${customerId}`, err);
     }
@@ -146,13 +152,6 @@ export class PaddleService {
     } catch (err: any) {
       return { handled: false, reason: err.message };
     }
-  }
-
-  async getTransactions(query: Record<string, any>) {
-    const after = query.after as string | undefined;
-    const perPage = query.per_page ? parseInt(query.per_page as string, 10) : undefined;
-    const status = query.status as string | undefined;
-    return this.listTransactions({ after, per_page: perPage, status });
   }
 
   private async signUp(input: PaddleSignUpInput): Promise<{ user: any }> {

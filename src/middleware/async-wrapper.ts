@@ -9,6 +9,7 @@ export function asyncWrapper(fn: (request: Request, response: Response) => Promi
     try {
       return await fn(request, reply);
     } catch (err: any) {
+      console.log(err)
       const prismaErr = mapPrismaError(err);
       if (prismaErr) {
         return ResponseHandler.error(reply, prismaErr.code, prismaErr, prismaErr.status);
