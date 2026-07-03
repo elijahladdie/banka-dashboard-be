@@ -16,10 +16,10 @@ export class SettingsRepository implements ISettingsRepository {
     });
   }
 
-  async updatePassword(id: string, passwordHash: string): Promise<User> {
+  async updatePassword(id: string, password: string): Promise<User> {
     return prisma.user.update({
       where: { id },
-      data: { password: passwordHash },
+      data: { password: password },
     });
   }
 }

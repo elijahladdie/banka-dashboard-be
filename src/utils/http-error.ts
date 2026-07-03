@@ -2,7 +2,7 @@ export class HttpError extends Error {
   constructor(
     public statusCode: number,
     message: string,
-    public emptyData: any = null,
+    public emptyData: unknown = null,
   ) {
     super(message);
     this.name = 'HttpError';
@@ -10,7 +10,7 @@ export class HttpError extends Error {
 }
 
 export class NotFoundError extends HttpError {
-  constructor(message: string = 'Resource not found', emptyData: any = []) {
+  constructor(message: string = 'Resource not found', emptyData: unknown = []) {
     super(404, message, emptyData);
   }
 }

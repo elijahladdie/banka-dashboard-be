@@ -1,7 +1,7 @@
 import { PAGINATION } from '../constants';
-import { PaginatedResult, PaginationParams } from '../types';
+import { PaginatedResult, PaginationParams, QueryParams } from '../types';
 
-export function parsePaginationParams(query: Record<string, any>): Required<PaginationParams> {
+export function parsePaginationParams(query: QueryParams): Required<PaginationParams> {
   const page = Math.max(1, parseInt(query.page as string, 10) || PAGINATION.DEFAULT_PAGE);
   const limit = Math.min(
     PAGINATION.MAX_LIMIT,

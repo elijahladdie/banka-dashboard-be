@@ -1,8 +1,8 @@
-import { Advisor, User } from '@prisma/client';
+import { Advisor, User, Prisma } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IAdvisorsRepository } from '../interfaces/advisors.interface';
 import { INCLUDE_USER } from '../../constants';
-import { TUserSelect } from '../../types';
+import { TUserSelect, QueryParams } from '../../types';
 
 export class AdvisorsRepository implements IAdvisorsRepository {
   async findById(id: string): Promise<(Advisor & { user: TUserSelect }) | null> {
@@ -28,7 +28,7 @@ export class AdvisorsRepository implements IAdvisorsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[(Advisor & { user: User })[], number]> {
     const [records, count] = await prisma.$transaction([
       prisma.advisor.findMany({
@@ -45,7 +45,7 @@ export class AdvisorsRepository implements IAdvisorsRepository {
   }
 
   async create(data: Partial<Advisor>): Promise<Advisor> {
-    return await prisma.advisor.create({ data: data as any });
+    return await prisma.advisor.create({ data: data as Prisma.AdvisorCreateInput });
   }
 
   async update(id: string, data: Partial<Advisor>): Promise<Advisor> {

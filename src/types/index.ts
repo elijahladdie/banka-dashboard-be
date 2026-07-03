@@ -1,4 +1,4 @@
-import { UserStatus } from '@prisma/client';
+import { ClientAssignment, UserStatus, Subscription } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 
 interface JwtPayload {
@@ -29,31 +29,18 @@ export interface PaginatedResult<T> {
     hasPrevious: boolean;
   };
 }
-
-export interface ApiResponse<T = any> {
-  success: boolean;
-  message: string;
-  data?: T;
-  error?: string;
-  stack?: string;
-}
-
 export interface SignUpInput {
   email: string;
-  password: string;
+  password?: string;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   phoneNumber?: string;
+  subscriptionId?: string;
+  customerId?: string;
+  isRegComplete?: boolean;
+  roleSlug?: string;
+  source: 'paddle' | 'manual';
 }
-
-export interface PaddleSignUpInput {
-  email: string;
-  fullName: string;
-  source: 'paddle';
-  subscriptionId: string;
-  customerId: string;
-}
-
 export interface CompleteRegistrationInput {
   email: string;
   phone: string;
@@ -148,7 +135,7 @@ export interface AnalyticsOverview {
   };
 }
 
-export interface PaddleProductQuery {
+export interface ProductQuery {
   interval?: 'month' | 'year';
 }
 
@@ -160,10 +147,79 @@ export interface WebhookResult {
 export interface UpdateActivationInput {
   customerId: string;
   subscriptionId: string;
-  event: any;
+  event: Record<string, any>;
 }
 export type AsyncFunction = (
   request: Request,
   response: Response,
   next: NextFunction,
 ) => Promise<any>;
+
+/** Central type for dynamic query params parsed from Express req.query */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type QueryParams = Record<string, any>;
+
+/** Role info from UserRole join */
+export interface UserRoleInfo {
+  role: { slug: string };
+}
+
+/** User with roles */
+export type UserWithRoles = {
+  userRoles: UserRoleInfo[];
+};
+
+export interface SafeUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string | null;
+  status: string;
+  roles: string[];
+  isRegComplete: boolean;
+  isVerified: boolean;
+  lastLoginAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  closedAt: Date | null;
+  source: string | null;
+}
+
+export interface AuthResponse {
+  user: SafeUser;
+  token: string;
+}
+
+export interface JwtDecodedPayload {
+  userId: string;
+  email: string;
+  roles: string[];
+  iat?: number;
+  exp?: number;
+}
+
+export interface CreateAdvisorInput {
+  userId: string;
+  employeeCode: string;
+  specialization?: string;
+  bio?: string;
+  maxClients?: number;
+}
+
+export type TSelectClientAssignment = {
+  client: { user: TUserSelect };
+} & ClientAssignment;
+
+
+export type SubscriptionWithUser = Subscription & {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string | null;
+    status: string;
+    userRoles: { role: { slug: string } }[];
+  };
+};

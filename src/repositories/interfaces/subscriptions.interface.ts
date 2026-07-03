@@ -1,16 +1,5 @@
 import { Prisma, Subscription } from '@prisma/client';
-
-export type SubscriptionWithUser = Subscription & {
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phoneNumber: string | null;
-    status: string;
-    userRoles: { role: { slug: string } }[];
-  };
-};
+import { QueryParams, SubscriptionWithUser } from '../../types';
 
 export interface ISubscriptionsRepository {
   findOne(where: Prisma.SubscriptionWhereInput): Promise<SubscriptionWithUser | null>;
@@ -18,7 +7,7 @@ export interface ISubscriptionsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[SubscriptionWithUser[], number]>;
   findActiveSubscriptions(): Promise<SubscriptionWithUser[]>;
   create(data: Partial<Subscription>): Promise<Subscription>;

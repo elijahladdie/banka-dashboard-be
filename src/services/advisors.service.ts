@@ -1,7 +1,7 @@
 import { Advisor, User } from '@prisma/client';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { ConflictError, NotFoundError } from '../helpers';
-import { PaginatedResult, TUserSelect } from '../types';
+import { PaginatedResult, TUserSelect, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildAdvisorsFilter } from '../helpers/query-builder.helper';
 
@@ -11,7 +11,7 @@ export class AdvisorsService {
     this.advisorsRepository = new AdvisorsRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<Advisor & { user: User }>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<Advisor & { user: User }>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = buildAdvisorsFilter(query);
@@ -20,7 +20,7 @@ export class AdvisorsService {
   }
 
   async findById(id: string): Promise<Advisor & { user: TUserSelect }> {
-    const advisor = await this.advisorsRepository.findById(id) as any;
+    const advisor = await this.advisorsRepository.findById(id);
     if (!advisor) throw new NotFoundError('No advisor found');
     return advisor;
   }

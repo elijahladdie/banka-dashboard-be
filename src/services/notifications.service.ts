@@ -1,7 +1,7 @@
 import { Notification } from '@prisma/client';
 import { NotificationsRepository } from '../repositories/implementations/notifications.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildNotificationsFilter } from '../helpers/query-builder.helper';
 
@@ -11,7 +11,7 @@ export class NotificationsService {
     this.notificationsRepository = new NotificationsRepository();
   }
 
-  async findByUser(userId: string, query: Record<string, any>): Promise<PaginatedResult<Notification>> {
+  async findByUser(userId: string, query: QueryParams): Promise<PaginatedResult<Notification>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = { ...buildNotificationsFilter(query), userId };

@@ -1,4 +1,5 @@
 import { Notification } from '@prisma/client';
+import { QueryParams } from '../../types';
 
 export interface INotificationsRepository {
   findById(id: string): Promise<Notification | null>;
@@ -6,7 +7,7 @@ export interface INotificationsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[Notification[], number]>;
   create(data: Partial<Notification>): Promise<Notification>;
   markAsRead(id: string): Promise<Notification>;

@@ -5,6 +5,9 @@ import {
   SignInInput,
   CompleteRegistrationInput,
   PendingRegistrationResult,
+  AuthResponse,
+  JwtDecodedPayload,
+  UserWithRoles,
 } from '../types';
 import { ConflictError, UnauthorizedError, NotFoundError, ValidationError } from '../helpers';
 import { hashPassword, verifyPassword, createAuthResponse, sanitizeUser, generateResetToken, extractRoles } from '../helpers/auth.helper';
@@ -18,20 +21,24 @@ export class AuthService {
     this.subscriptionsRepository = new SubscriptionsRepository();
   }
 
-  async signUp(input: SignUpInput): Promise<{ user: any; token: string }> {
+  async signUp(input: SignUpInput): Promise<AuthResponse> {
     const existing = await this.authRepository.findByEmail(input.email);
     if (existing) throw new ConflictError('A user with this email already exists.');
 
-    const passwordHash = await hashPassword(input.password);
+    const password = await hashPassword(String(input.password));
     const user = await this.authRepository.createUserWithRole({
       email: input.email.toLowerCase(),
-      passwordHash, firstName: input.firstName, lastName: input.lastName,
-      phoneNumber: input.phoneNumber, roleSlug: 'client',
+      password, 
+      firstName: input.firstName,
+       lastName: input.lastName,
+      phoneNumber: input.phoneNumber, 
+      roleSlug: 'client',
+      source: input.source || 'signup',
     });
     return createAuthResponse(user);
   }
 
-  async signIn(input: SignInInput): Promise<{ user: any; token: string }> {
+  async signIn(input: SignInInput): Promise<AuthResponse> {
     const user = await this.authRepository.findByEmailWithRoles(input.email.toLowerCase());
     if (!user) throw new UnauthorizedError('Invalid email or password.');
     if (user.closedAt) throw new UnauthorizedError('This account has been deactivated.');
@@ -47,14 +54,14 @@ export class AuthService {
     return { user: safeUser, token };
   }
 
-  async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; token: string }> {
+  async completeRegistration(input: CompleteRegistrationInput): Promise<AuthResponse> {
     const user = await this.authRepository.findByEmailWithRoles(input.email);
     if (!user) throw new NotFoundError('User');
     if (user.isRegComplete) throw new ValidationError('Registration is already completed.');
 
-    const passwordHash = await hashPassword(input.password);
+    const password = await hashPassword(input.password);
     const updated = await this.authRepository.updateUser(user.id, {
-      password: passwordHash, phoneNumber: input.phone,
+      password: password, phoneNumber: input.phone,
       firstName: input.firstName, lastName: input.lastName,
       isVerified: true, isRegComplete: true, status: 'ACTIVE',
     });
@@ -64,7 +71,7 @@ export class AuthService {
   async checkPendingRegistration(token: string): Promise<PendingRegistrationResult> {
     const jwt = await import('jsonwebtoken');
     const { JWT_ACCESS_SECRET } = await import('../constants/constants');
-    const decoded = jwt.default.verify(token, JWT_ACCESS_SECRET) as any;
+    const decoded = jwt.default.verify(token, JWT_ACCESS_SECRET) as JwtDecodedPayload;
     if (!decoded?.email) throw new ValidationError('Invalid token.');
 
     const user = await this.authRepository.findByEmail(decoded.email.toLowerCase());
@@ -80,7 +87,7 @@ export class AuthService {
   }
 
   async resetPassword(resetToken: string, newPassword: string): Promise<void> {
-    const passwordHash = await hashPassword(newPassword);
+    const password = await hashPassword(newPassword);
   }
 
   async verifyEmail(userId: string): Promise<void> {

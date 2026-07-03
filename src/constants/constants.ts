@@ -57,7 +57,14 @@ export  const SUBSCRIPTION_RANK: Record<string, number> = {
       'advanced:year': 6,
     };
     
-export const PLAN_FEATURES: Record<string, any>[] = [
+interface PlanFeature {
+  name: string;
+  title: string;
+  subtitle: string;
+  features: string[];
+}
+
+export const PLAN_FEATURES: PlanFeature[] = [
   {
     name: "Starter",
     title: "💰 RWF 10,000/month • RWF 100,000/year",

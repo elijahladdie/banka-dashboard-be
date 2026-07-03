@@ -1,6 +1,7 @@
-import { Notification } from '@prisma/client';
+import { Notification, Prisma } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { INotificationsRepository } from '../interfaces/notifications.interface';
+import { QueryParams } from '../../types';
 
 export class NotificationsRepository implements INotificationsRepository {
   async findById(id: string): Promise<Notification | null> {
@@ -12,7 +13,7 @@ export class NotificationsRepository implements INotificationsRepository {
       skip?: number;
       take?: number;
       orderBy?: Record<string, 'asc' | 'desc'>;
-      where?: Record<string, any>;
+      where?: QueryParams;
     }
   ): Promise<[Notification[], number]> {
     const [notifications, total] = await prisma.$transaction([
@@ -28,7 +29,7 @@ export class NotificationsRepository implements INotificationsRepository {
   }
 
   async create(data: Partial<Notification>): Promise<Notification> {
-    return prisma.notification.create({ data: data as any });
+    return prisma.notification.create({ data: data as Prisma.NotificationCreateInput });
   }
 
   async markAsRead(id: string): Promise<Notification> {

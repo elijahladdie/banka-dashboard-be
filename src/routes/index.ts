@@ -15,6 +15,7 @@ import serviceRequestsRoutes from './service-requests.route';
 import express from 'express';
 import { swaggerSpec } from '../helpers';
 import swaggerUi from 'swagger-ui-express';
+import { RequestHandler } from 'express';
 
 const router = express.Router();
 router.use('/auth', authRoutes);
@@ -40,7 +41,7 @@ router.use('/docs', [swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     filter: true,
     tryItOutEnabled: true,
   },
-})] as any);
+})] as unknown as RequestHandler[]);
 router.get('/health', (_req, res) => {
   res.status(200).json({
     success: true,

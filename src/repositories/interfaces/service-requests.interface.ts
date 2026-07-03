@@ -1,4 +1,5 @@
 import { ServiceRequest } from '@prisma/client';
+import { QueryParams } from '../../types';
 
 export interface IServiceRequestsRepository {
   findById(id: string): Promise<ServiceRequest | null>;
@@ -6,7 +7,7 @@ export interface IServiceRequestsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[ServiceRequest[], number]>;
   findByClient(clientId: string, params: {
     skip?: number;

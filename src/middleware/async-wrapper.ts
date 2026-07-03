@@ -5,6 +5,10 @@ import { mapPrismaError } from '../utils/map-prisma-error';
 import logger from '../utils/logger';
 import { AsyncFunction } from '../types';
 
+function isErrorLike(err: unknown): err is { message: string } {
+  return typeof err === 'object' && err !== null && 'message' in err;
+}
+
 export function asyncWrapper(fn: AsyncFunction) {
   return async (
     request: Request,
@@ -13,8 +17,9 @@ export function asyncWrapper(fn: AsyncFunction) {
   ) => {
     try {
       return await fn(request, response, next);
-    } catch (err: any) {
-      const prismaErr = mapPrismaError(err);
+    } catch (err) {
+      const error = err as Error;
+      const prismaErr = mapPrismaError(error);
 
       if (prismaErr) {
         return ResponseHandler.error(
@@ -25,24 +30,24 @@ export function asyncWrapper(fn: AsyncFunction) {
         );
       }
 
-      if (err instanceof HttpError) {
+      if (error instanceof HttpError) {
         return ResponseHandler.error(
           response,
           101,
-          err,
-          err.statusCode,
+          error,
+          error.statusCode,
         );
       }
 
       logger.error(
-        `Unhandled error in asyncWrapper: ${err?.message}`,
-        err,
+        `Unhandled error in asyncWrapper: ${error?.message}`,
+        error,
       );
 
       return ResponseHandler.error(
         response,
         999,
-        err,
+        error,
         500,
       );
     }

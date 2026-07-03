@@ -1,6 +1,7 @@
 import { Goal } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IGoalsRepository } from '../interfaces/goals.interface';
+import { QueryParams } from '../../types';
 
 export class GoalsRepository implements IGoalsRepository {
   async findById(id: string): Promise<Goal | null> {
@@ -13,7 +14,7 @@ export class GoalsRepository implements IGoalsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[Goal[], number]> {
     const [records, count] = await prisma.$transaction([
       prisma.goal.findMany({

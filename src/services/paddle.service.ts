@@ -5,8 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuthRepository } from '../repositories/implementations/auth.repository';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { ForbiddenError, ServerError, UnauthorizedError } from '../helpers';
-import { PaddleProductQuery, WebhookResult, PaddleSignUpInput, UpdateActivationInput } from '../types';
-import { generateTokens, mapProductToClientResponse, normalizePaddleSubscription } from '../helpers/helper';
+import { ProductQuery, WebhookResult, UpdateActivationInput, SignUpInput } from '../types';
+import { generateTokens, mapProductToClientResponse, formatSubscription } from '../helpers/helper';
 import { sendRegistrationEmail } from './email.service';
 import { buildSubscriptionUpdateData, isSubscriptionChanged, getRankComparison, sendPlanChangeNotification, extractWebhookPayload } from '../helpers/subscriptions.helper';
 import logger from '../utils/logger';
@@ -20,7 +20,7 @@ export class PaddleService {
     this.subscriptionsRepository = new SubscriptionsRepository();
   }
 
-  async updateActivation({ customerId, subscriptionId, event }: any) {
+  async updateActivation({ customerId, subscriptionId, event }: { customerId: string; subscriptionId: string; event: Record<string, any> }): Promise<any> {
     const subscription = await this.subscriptionsRepository.findOne({ customerId });
     if (!subscription) return null;
 
@@ -49,7 +49,7 @@ export class PaddleService {
     await this.subscriptionsRepository.update(subscription.id, { status: 'CANCELED', subscriptionId });
   }
 
-  async listProducts(query: PaddleProductQuery = {}) {
+  async listProducts(query: ProductQuery = {}) {
     try {
       const params: ListProductQueryParameters = {};
       const interval = query.interval || 'year';
@@ -79,18 +79,18 @@ export class PaddleService {
       if (query.per_page) params.perPage = query.per_page;
       if (query.status) params.status = query.status;
       return await (await paddle.transactions.list(params).next());
-    } catch (error: any) {
+    } catch (error) {
       throw this.handlePaddleError(error, 'Failed to fetch transactions from Paddle');
     }
   }
 
-  async subscriptionCreation(event: any): Promise<void> {
+  async subscriptionCreation(event: Record<string, any>): Promise<void> {
     const data = event.data || {};
     const email = data.email;
-    await this.signUp({ email, fullName: data.name || email.split('@')[0], customerId: data.id || '', subscriptionId: '', source: 'paddle' });
+    await this.signUp({ email, firstName: data.name || email.split('@')[0], customerId: data.id || '', subscriptionId: '', source: 'paddle' });
   }
 
-  async subscriptionActivation(event: any): Promise<WebhookResult | void> {
+  async subscriptionActivation(event: Record<string, any>): Promise<WebhookResult | void> {
     try {
       const payload = extractWebhookPayload(event);
       switch (event.eventType) {
@@ -120,11 +120,11 @@ export class PaddleService {
     return this.listTransactions({ after, per_page: perPage, status });
   }
 
-  private async syncActivatedSubscription({ customerId, subscriptionId, event }: { customerId: string; subscriptionId: string; event: any }): Promise<void> {
+  private async syncActivatedSubscription({ customerId, subscriptionId, event }: { customerId: string; subscriptionId: string; event: Record<string, any> }): Promise<void> {
     try {
       const sub = await this.subscriptionsRepository.findOne({ customerId });
       if (!sub) return;
-      const normalized = normalizePaddleSubscription(event);
+      const normalized = formatSubscription(event);
       await this.subscriptionsRepository.update(sub.id, {
         subscriptionId, plan: normalized.product, status: normalized.status,
         startsAt: normalized.startsAt, endsAt: normalized.endsAt,
@@ -146,15 +146,16 @@ export class PaddleService {
       const customer = await this.findCustomer(customerId);
       if (!customer) return { handled: true };
 
-      await this.signUp({ email: customer.email, fullName: customer.name || customer.email.split('@')[0], customerId, subscriptionId, source: 'paddle' });
+      await this.signUp({ email: customer.email, firstName: customer.name || customer.email.split('@')[0], customerId, subscriptionId, source: 'paddle' });
       await this.updateActivation({ customerId, subscriptionId, event });
       return { handled: true };
     } catch (err: any) {
+      logger.error(`[paddle-webhook] Error processing subscription update for customerId: ${customerId}`, err);
       return { handled: false, reason: err.message };
     }
   }
 
-  private async signUp(input: PaddleSignUpInput): Promise<{ user: any }> {
+  private async signUp(input: SignUpInput): Promise<{ user: any }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
     if (existingUser) {
       const existingSub = await this.subscriptionsRepository.findOne({ userId: existingUser.id });
@@ -169,8 +170,8 @@ export class PaddleService {
 
     const placeholderHash = await bcrypt.hash(uuidv4(), 1);
     const user = await this.authRepository.createUserWithRole({
-      email: input.email, passwordHash: placeholderHash,
-      firstName: input.fullName, lastName: '',
+      email: input.email, password: placeholderHash,
+      firstName: input.firstName, lastName: input.lastName || '',
       isRegComplete: false, source: 'paddle', roleSlug: 'client',
     });
 

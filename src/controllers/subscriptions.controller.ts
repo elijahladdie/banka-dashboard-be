@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { SubscriptionsService } from '../services/subscriptions.service';
-import { AuthenticatedRequest } from '../types';
+import { AuthenticatedRequest, QueryParams } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
 
 export class SubscriptionsController {
@@ -10,7 +10,7 @@ export class SubscriptionsController {
   }
 
   async findAll(req: AuthenticatedRequest, res: Response) {
-    const query: Record<string, any> = { ...req.query, user: req.user };
+    const query: QueryParams = { ...req.query, user: req.user };
     if (req.user?.roles?.includes('advisor')) query.advisorId = req.user.userId;
     const result = await this.subscriptionsService.findAll(query);
     ResponseHandler.success(res, result, 'Subscriptions retrieved successfully.');

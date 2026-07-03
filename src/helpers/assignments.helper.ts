@@ -1,11 +1,11 @@
 import { ClientAssignment } from '@prisma/client';
-import { TUserSelect } from '../types';
+import { TUserSelect, TSelectClientAssignment} from '../types';
 
 export type FormattedAssignment = Omit<ClientAssignment, 'client'> & {
-  user: TUserSelect;
+  client: TUserSelect;
 };
 
-export function formatAssignments(assignments: any[]): FormattedAssignment[] {
+export function formatAssignments(assignments: TSelectClientAssignment[]): FormattedAssignment[] {
   return assignments.map(({ client, ...rest }) => ({
     ...rest,
     client: client.user as TUserSelect,

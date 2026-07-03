@@ -1,12 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { JWT_ACCESS_SECRET, PLAN_NAME_MAP, PLAN_FEATURES } from '../constants/constants';
 import { SubscriptionStatus } from '@prisma/client';
+import { Price, Product } from '@paddle/paddle-node-sdk';
 
 export const generateTokens = (
     payload: Record<string, string | string[]>
 ): string => jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
 
-export const normalizePaddleSubscription = (event: any) => {
+export const formatSubscription = (event: Record<string, any>) => {
     const data = event?.data ?? {};
 
     const lineItem =
@@ -101,9 +102,9 @@ const getPlanFeatures = (planKey?: string) => {
     }
 };
 
-export const mapProductToClientResponse = (product: any, interval: string = "year") => {
+export const mapProductToClientResponse = (product: Product, interval: string = "year") => {
     const planKey = PLAN_NAME_MAP[product.customData?.plan?.toLowerCase()] || PLAN_NAME_MAP[product.name?.toLowerCase()];
-    const selectedPrice = (product.prices || []).find((price: any) => price.billingCycle?.interval === interval);
+    const selectedPrice = (product.prices || []).find((price: Price) => price.billingCycle?.interval === interval);
     if (!selectedPrice) return null;
 
     return {

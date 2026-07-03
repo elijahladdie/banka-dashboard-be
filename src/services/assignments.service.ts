@@ -2,7 +2,7 @@ import { Prisma, ClientAssignment } from '@prisma/client';
 import { AssignmentsRepository } from '../repositories/implementations/assignments.repository';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { ConflictError, NotFoundError, ValidationError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams, UserRoleInfo } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { formatAssignments } from '../helpers/assignments.helper';
@@ -19,18 +19,18 @@ export class AssignmentsService {
     this.subsRepository = new SubscriptionsRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<ClientAssignment>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<ClientAssignment>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = buildAssignmentsFilter(query);
-    const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where }) as [any[], number];
+    const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where });
     return paginateResult(formatAssignments(assignments), total, pagination);
   }
 
   async assignClient(clientId: string, advisorId: string, assignedBy: string): Promise<ClientAssignment> {
     const client = await this.subsRepository.findOne({ id: clientId });
     if (!client) throw new NotFoundError('Client not found');
-    const hasClientRole = client.user?.userRoles?.some((ur: any) => ur.role.slug === 'client');
+    const hasClientRole = client.user?.userRoles?.some((ur: UserRoleInfo) => ur.role.slug === 'client');
     if (!hasClientRole) throw new ValidationError('User is not a client.');
 
     const advisor = await this.advisorsRepository.findById(advisorId);

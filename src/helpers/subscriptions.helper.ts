@@ -1,6 +1,6 @@
 import { Subscription } from '@prisma/client';
 import { sendSubsPlanChangeEmail } from '../services/email.service';
-import { normalizePaddleSubscription } from './helper';
+import { formatSubscription } from './helper';
 import { SUBSCRIPTION_RANK, PLAN_NAME_MAP } from '../constants/constants';
 
 export function getSubscriptionRank(plan: string, interval: string): number {
@@ -18,8 +18,8 @@ export function getPlanDisplayName(planKey: string): string {
 }
 
 
-export function buildSubscriptionUpdateData(event: any, subscription: Subscription) {
-  const normalized = normalizePaddleSubscription(event);
+export function buildSubscriptionUpdateData(event: { data?: Record<string, unknown> }, subscription: Subscription) {
+  const normalized = formatSubscription(event);
   return {
     subscription: normalized,
     previousPlan: subscription.plan,
@@ -58,10 +58,10 @@ export async function sendPlanChangeNotification(
   });
 }
 
-export function extractWebhookPayload(event: any) {
+export function extractWebhookPayload(event: { data?: { id?: string; customerId?: string } }) {
   const data = event.data || {};
   return {
-    customerId: data.customerId,
+    customerId: data.customerId || '',
     subscriptionId: data.id || '',
     event,
   };

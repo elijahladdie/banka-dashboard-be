@@ -1,7 +1,7 @@
 import { Meeting } from '@prisma/client';
 import { MeetingsRepository } from '../repositories/implementations/meetings.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildMeetingsFilter } from '../helpers/query-builder.helper';
 
@@ -11,7 +11,7 @@ export class MeetingsService {
     this.meetingsRepository = new MeetingsRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<Meeting>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<Meeting>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = buildMeetingsFilter(query);

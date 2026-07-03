@@ -21,7 +21,7 @@ function createTransporter(): nodemailer.Transporter {
   if (NODE_ENV !== 'production') {
     logger.warn('[email] SMTP not configured — emails will be logged to console only.');
     return {
-      sendMail: async (opts: any) => {
+      sendMail: async (opts: SendMailOptions) => {
         logger.info('[email] Would send email:', JSON.stringify(opts, null, 2));
         return { messageId: `log-${Date.now()}` };
       },

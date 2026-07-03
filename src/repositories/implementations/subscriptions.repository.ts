@@ -1,13 +1,11 @@
 import { Prisma, Subscription } from '@prisma/client';
 import prisma from '../../utils/prisma';
-import { ISubscriptionsRepository, SubscriptionWithUser } from '../interfaces/subscriptions.interface';
+import { ISubscriptionsRepository } from '../interfaces/subscriptions.interface';
 import { INCLUDE_USER, INCLUDE_USER_ADVISOR } from '../../constants';
+import { QueryParams, SubscriptionWithUser } from '../../types';
 
 
 export class SubscriptionsRepository implements ISubscriptionsRepository {
-  upsertCustomer(id: string, arg1: { customerId: any; }) {
-    throw new Error('Method not implemented.');
-  }
   async findOne(where: Prisma.SubscriptionWhereInput): Promise<SubscriptionWithUser | null> {
     return await prisma.subscription.findFirst({
       where,
@@ -19,17 +17,17 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[SubscriptionWithUser[], number]> {
     const [subscriptions, total] = await Promise.all([
       prisma.subscription.findMany({ ...params, include: INCLUDE_USER_ADVISOR }),
       prisma.subscription.count({ where: params.where }),
     ]);
-    return [subscriptions as any[], total];
+    return [subscriptions as unknown as SubscriptionWithUser[], total];
   }
 
   async findAllWithUsers(params?: {
-    where?: Record<string, any>;
+    where?: QueryParams;
     orderBy?: Record<string, 'asc' | 'desc'>;
   }): Promise<SubscriptionWithUser[]> {
     return await prisma.subscription.findMany({
@@ -70,7 +68,7 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
   }
 
   async create(data: Partial<Subscription>): Promise<Subscription> {
-    return await prisma.subscription.create({ data: data as any });
+    return await prisma.subscription.create({ data: data as Prisma.SubscriptionCreateInput });
   }
 
   async update(id: string, data: Prisma.SubscriptionUpdateInput): Promise<Subscription> {

@@ -1,7 +1,7 @@
-import { ServiceRequest } from '@prisma/client';
+import { ServiceRequest, RequestStatus } from '@prisma/client';
 import { ServiceRequestsRepository } from '../repositories/implementations/service-requests.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildServiceRequestsFilter } from '../helpers/query-builder.helper';
 
@@ -11,7 +11,7 @@ export class ServiceRequestsService {
     this.repository = new ServiceRequestsRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<ServiceRequest>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<ServiceRequest>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = buildServiceRequestsFilter(query);
@@ -25,14 +25,14 @@ export class ServiceRequestsService {
     return request;
   }
 
-  async findByClient(clientId: string, query: Record<string, any>): Promise<PaginatedResult<ServiceRequest>> {
+  async findByClient(clientId: string, query: QueryParams): Promise<PaginatedResult<ServiceRequest>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const [requests, total] = await this.repository.findByClient(clientId, { skip, take, orderBy });
     return paginateResult(requests, total, pagination);
   }
 
-  async findByAdvisor(advisorId: string, query: Record<string, any>): Promise<PaginatedResult<ServiceRequest>> {
+  async findByAdvisor(advisorId: string, query: QueryParams): Promise<PaginatedResult<ServiceRequest>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const [requests, total] = await this.repository.findByAdvisor(advisorId, { skip, take, orderBy });
@@ -48,9 +48,9 @@ export class ServiceRequestsService {
     return this.repository.update(id, data);
   }
 
-  async respond(id: string, status: string, advisorResponse?: string): Promise<ServiceRequest> {
+  async respond(id: string, status: RequestStatus, advisorResponse?: string): Promise<ServiceRequest> {
     await this.findById(id);
-    return this.repository.update(id, { status: status as any, ...(advisorResponse ? { advisorResponse } : {}) });
+    return this.repository.update(id, { status, ...(advisorResponse ? { advisorResponse } : {}) });
   }
 
   async linkMeeting(id: string, meetingId: string): Promise<ServiceRequest> {

@@ -1,7 +1,7 @@
 import { Goal } from '@prisma/client';
 
 export function calculateGoalStatus(goal: Goal, currentAmount: number): Partial<Goal> {
-  const data: any = { currentAmount };
+  const data = { currentAmount } as unknown as Partial<Goal>;
   const targetAmount = goal.targetAmount ? Number(goal.targetAmount) : null;
 
   if (targetAmount && currentAmount >= targetAmount) {

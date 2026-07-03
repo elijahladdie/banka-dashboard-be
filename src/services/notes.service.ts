@@ -1,7 +1,7 @@
 import { AdvisoryNote } from '@prisma/client';
 import { NotesRepository } from '../repositories/implementations/notes.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 
 export class NotesService {
@@ -10,10 +10,10 @@ export class NotesService {
     this.notesRepository = new NotesRepository();
   }
 
-  async findByAdvisor(advisorId: string, query: Record<string, any>): Promise<PaginatedResult<AdvisoryNote>> {
+  async findByAdvisor(advisorId: string, query: QueryParams): Promise<PaginatedResult<AdvisoryNote>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-    const where: Record<string, any> = { advisorId };
+    const where: QueryParams = { advisorId };
     if (query.clientId) where.clientId = query.clientId;
     const [notes, total] = await this.notesRepository.findAll({ skip, take, orderBy, where });
     return paginateResult(notes, total, pagination);

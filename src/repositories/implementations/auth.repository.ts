@@ -1,6 +1,7 @@
 import { Prisma, User } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IAuthRepository } from '../interfaces/auth.interface';
+import { SignUpInput } from '../../types';
 
 export class AuthRepository implements IAuthRepository {
   async findByEmail(email: string): Promise<User | null> {
@@ -27,7 +28,7 @@ export class AuthRepository implements IAuthRepository {
 
   async createUser(data: {
     email: string;
-    passwordHash: string;
+    password: string;
     firstName: string;
     lastName: string;
     phoneNumber?: string;
@@ -37,7 +38,7 @@ export class AuthRepository implements IAuthRepository {
     return await prisma.user.create({
       data: {
         email: data.email,
-        password: data.passwordHash,
+        password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
         phoneNumber: data.phoneNumber,
@@ -48,22 +49,13 @@ export class AuthRepository implements IAuthRepository {
     });
   }
 
-  async createUserWithRole(data: {
-    email: string;
-    passwordHash: string;
-    firstName: string;
-    lastName: string;
-    phoneNumber?: string;
-    isRegComplete?: boolean;
-    source?: string;
-    roleSlug: string;
-  }): Promise<User & { userRoles: { role: { slug: string } }[] }> {
+  async createUserWithRole(data: SignUpInput): Promise<User & { userRoles: { role: { slug: string } }[] }> {
     return await prisma.user.create({
       data: {
         email: data.email,
-        password: data.passwordHash,
+        password: String(data.password),
         firstName: data.firstName,
-        lastName: data.lastName,
+        lastName: String(data.lastName || ''),
         phoneNumber: data.phoneNumber,
         isRegComplete: data.isRegComplete ?? true,
         source: data.source,
@@ -77,7 +69,7 @@ export class AuthRepository implements IAuthRepository {
         },
       },
       include: { userRoles: { include: { role: { select: { slug: true } } } } },
-    }) as any;
+    }) as unknown as User & { userRoles: { role: { slug: string } }[] };
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {

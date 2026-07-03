@@ -1,4 +1,5 @@
 import { Advisor, User } from '@prisma/client';
+import { QueryParams } from '../../types';
 
 export interface IAdvisorsRepository {
   findById(id: string): Promise<Advisor | null>;
@@ -8,7 +9,7 @@ export interface IAdvisorsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[(Advisor & { user: User })[], number]>;
   create(data: Partial<Advisor>): Promise<Advisor>;
   update(id: string, data: Partial<Advisor>): Promise<Advisor>;

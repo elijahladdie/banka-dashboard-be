@@ -1,7 +1,7 @@
 import { Goal } from '@prisma/client';
 import { GoalsRepository } from '../repositories/implementations/goals.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildGoalsFilter } from '../helpers/query-builder.helper';
 import { calculateGoalStatus } from '../helpers/goals.helper';
@@ -12,7 +12,7 @@ export class GoalsService {
     this.goalsRepository = new GoalsRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<Goal>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<Goal>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = buildGoalsFilter(query);
@@ -26,7 +26,7 @@ export class GoalsService {
     return goal;
   }
 
-  async findByClient(clientId: string, query: Record<string, any>): Promise<PaginatedResult<Goal>> {
+  async findByClient(clientId: string, query: QueryParams): Promise<PaginatedResult<Goal>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const [goals, total] = await this.goalsRepository.findAll({ where: { clientId }, skip, take, orderBy });
@@ -34,12 +34,12 @@ export class GoalsService {
   }
 
   async create(data: Partial<Goal>, _actorId: string): Promise<Goal> {
-    return this.goalsRepository.create(data as any);
+    return this.goalsRepository.create(data);
   }
 
   async update(id: string, data: Partial<Goal>, _actorId: string): Promise<Goal> {
     await this.findById(id);
-    return this.goalsRepository.update(id, data as any);
+    return this.goalsRepository.update(id, data);
   }
 
   async updateProgress(id: string, currentAmount: number, _actorId: string): Promise<Goal> {

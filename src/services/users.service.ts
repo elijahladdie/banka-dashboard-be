@@ -1,7 +1,7 @@
 import { User } from '@prisma/client';
 import { UsersRepository } from '../repositories/implementations/users.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildUsersFilter } from '../helpers/query-builder.helper';
 
@@ -11,7 +11,7 @@ export class UsersService {
     this.usersRepository = new UsersRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<User>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<User>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = buildUsersFilter(query);

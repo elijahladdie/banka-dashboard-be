@@ -1,6 +1,7 @@
-import { AdvisoryNote } from '@prisma/client';
+import { AdvisoryNote, Prisma } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { INotesRepository } from '../interfaces/notes.interface';
+import { QueryParams } from '../../types';
 
 export class NotesRepository implements INotesRepository {
   async findById(id: string): Promise<AdvisoryNote | null> {
@@ -11,7 +12,7 @@ export class NotesRepository implements INotesRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[AdvisoryNote[], number]> {
     const { skip, take, orderBy, where } = params;
     const [notes, total] = await Promise.all([
@@ -22,7 +23,7 @@ export class NotesRepository implements INotesRepository {
   }
 
   async create(data: Partial<AdvisoryNote>): Promise<AdvisoryNote> {
-    return prisma.advisoryNote.create({ data: data as any });
+    return prisma.advisoryNote.create({ data: data as Prisma.AdvisoryNoteCreateInput });
   }
 
   async update(id: string, data: Partial<AdvisoryNote>): Promise<AdvisoryNote> {

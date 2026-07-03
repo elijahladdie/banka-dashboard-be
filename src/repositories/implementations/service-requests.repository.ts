@@ -1,6 +1,7 @@
-import { ServiceRequest } from '@prisma/client';
+import { ServiceRequest, Prisma } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IServiceRequestsRepository } from '../interfaces/service-requests.interface';
+import { QueryParams } from '../../types';
 
 export class ServiceRequestsRepository implements IServiceRequestsRepository {
   async findById(id: string): Promise<ServiceRequest | null> {
@@ -11,7 +12,7 @@ export class ServiceRequestsRepository implements IServiceRequestsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[ServiceRequest[], number]> {
     const [records, count] = await prisma.$transaction([
       prisma.serviceRequest.findMany({ ...params }),
@@ -47,7 +48,7 @@ export class ServiceRequestsRepository implements IServiceRequestsRepository {
   }
 
   async create(data: Partial<ServiceRequest>): Promise<ServiceRequest> {
-    return prisma.serviceRequest.create({ data: data as any });
+    return prisma.serviceRequest.create({ data: data as Prisma.ServiceRequestCreateInput });
   }
 
   async update(id: string, data: Partial<ServiceRequest>): Promise<ServiceRequest> {

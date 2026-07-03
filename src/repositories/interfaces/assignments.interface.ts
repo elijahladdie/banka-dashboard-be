@@ -1,4 +1,5 @@
 import { Prisma, ClientAssignment } from '@prisma/client';
+import { QueryParams } from '../../types';
 
 export interface IAssignmentsRepository {
   findById(id: string): Promise<ClientAssignment | null>;
@@ -11,7 +12,7 @@ export interface IAssignmentsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[ClientAssignment[], number]>;
   create(data: Prisma.ClientAssignmentCreateInput): Promise<ClientAssignment>;
   endAssignment(id: string): Promise<ClientAssignment>;

@@ -24,7 +24,7 @@ export class SettingsService {
     const user = await this.getProfile(userId);
     const valid = await verifyPassword(currentPassword, user.password);
     if (!valid) throw new ValidationError('Current password is incorrect.');
-    const passwordHash = await hashPassword(newPassword);
-    await this.settingsRepository.updatePassword(userId, passwordHash);
+    const password = await hashPassword(newPassword);
+    await this.settingsRepository.updatePassword(userId, password);
   }
 }

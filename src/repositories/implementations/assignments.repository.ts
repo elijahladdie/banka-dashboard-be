@@ -3,6 +3,7 @@ import prisma from '../../utils/prisma';
 import { IAssignmentsRepository } from '../interfaces/assignments.interface';
 import { INCLUDE_USER } from '../../constants';
 import logger from '../../utils/logger';
+import { QueryParams , TSelectClientAssignment} from '../../types';
 
 export class AssignmentsRepository implements IAssignmentsRepository {
   async findById(id: string): Promise<ClientAssignment | null> {
@@ -33,8 +34,8 @@ export class AssignmentsRepository implements IAssignmentsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
-  }): Promise<[ClientAssignment[], number]> {
+    where?: QueryParams;
+  }): Promise<[TSelectClientAssignment[], number]> {
     logger.info('Finding all assignments with params:', params);
     const [records, count] = await prisma.$transaction([
       prisma.clientAssignment.findMany({
@@ -47,7 +48,7 @@ export class AssignmentsRepository implements IAssignmentsRepository {
       }),
       prisma.clientAssignment.count({ where: params.where })]);
 
-    return [records, count];
+    return [records as unknown as TSelectClientAssignment[], count];
   }
 
   async create(data: Prisma.ClientAssignmentCreateInput): Promise<ClientAssignment> {

@@ -10,7 +10,7 @@ export class UsersRepository implements IUsersRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: Record<string, unknown>;
   }): Promise<[User[], number]> {
     const [users, total] = await Promise.all([
       prisma.user.findMany({

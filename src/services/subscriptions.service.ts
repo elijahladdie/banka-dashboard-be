@@ -1,7 +1,7 @@
 import { Prisma, Subscription } from '@prisma/client';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildSubscriptionsFilter } from '../helpers/query-builder.helper';
 import { PaddleService } from './paddle.service';
@@ -15,7 +15,7 @@ export class SubscriptionsService {
     this.paddleService = new PaddleService();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<Subscription>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<Subscription>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where = buildSubscriptionsFilter(query);
