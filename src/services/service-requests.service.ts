@@ -4,6 +4,7 @@ import { NotFoundError } from '../helpers';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildServiceRequestsFilter } from '../helpers/query-builder.helper';
+import { MESSAGES } from '../constants';
 
 export class ServiceRequestsService {
   private readonly repository: ServiceRequestsRepository;
@@ -21,7 +22,7 @@ export class ServiceRequestsService {
 
   async findById(id: string): Promise<ServiceRequest> {
     const request = await this.repository.findById(id);
-    if (!request) throw new NotFoundError('Service request');
+    if (!request) throw new NotFoundError(MESSAGES.SERVICE_REQUESTS.NOT_FOUND);
     return request;
   }
 

@@ -4,6 +4,7 @@ import { ConflictError, NotFoundError } from '../helpers';
 import { PaginatedResult, TUserSelect, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildAdvisorsFilter } from '../helpers/query-builder.helper';
+import { MESSAGES } from '../constants';
 
 export class AdvisorsService {
   private readonly advisorsRepository: AdvisorsRepository;
@@ -21,7 +22,7 @@ export class AdvisorsService {
 
   async findById(id: string): Promise<Advisor & { user: TUserSelect }> {
     const advisor = await this.advisorsRepository.findById(id);
-    if (!advisor) throw new NotFoundError('No advisor found');
+    if (!advisor) throw new NotFoundError(MESSAGES.ADVISORS.NOT_FOUND);
     return advisor;
   }
 

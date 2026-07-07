@@ -5,6 +5,7 @@ import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildGoalsFilter } from '../helpers/query-builder.helper';
 import { calculateGoalStatus } from '../helpers/goals.helper';
+import { MESSAGES } from '../constants';
 
 export class GoalsService {
   private readonly goalsRepository: GoalsRepository;
@@ -22,7 +23,7 @@ export class GoalsService {
 
   async findById(id: string): Promise<Goal> {
     const goal = await this.goalsRepository.findById(id);
-    if (!goal) throw new NotFoundError('Goal');
+    if (!goal) throw new NotFoundError(MESSAGES.GOALS.NOT_FOUND);
     return goal;
   }
 

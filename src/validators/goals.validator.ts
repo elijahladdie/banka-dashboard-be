@@ -23,4 +23,7 @@ export const updateGoalProgressSchema = z.object({
   body: z.object({
     currentAmount: z.number().min(0, 'Current amount must be non-negative'),
   }),
+  params: z.object({
+    id: z.string().uuid('Invalid goal ID'),
+  }),
 });

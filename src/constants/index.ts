@@ -1,3 +1,5 @@
+export { MESSAGES } from './messages';
+
 export const ROLES = {
   ADMIN: 'admin',
   ADVISOR: 'advisor',

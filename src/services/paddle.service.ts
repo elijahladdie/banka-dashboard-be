@@ -10,6 +10,7 @@ import { generateTokens, mapProductToClientResponse, formatSubscription } from '
 import { sendRegistrationEmail } from './email.service';
 import { buildSubscriptionUpdateData, isSubscriptionChanged, getRankComparison, sendPlanChangeNotification, extractWebhookPayload } from '../helpers/subscriptions.helper';
 import logger from '../utils/logger';
+import { MESSAGES } from '../constants';
 
 export class PaddleService {
   private readonly authRepository: AuthRepository;
@@ -58,7 +59,7 @@ export class PaddleService {
         .map((product: any) => mapProductToClientResponse(product, interval))
         .filter(Boolean);
     } catch (error: any) {
-      throw this.handlePaddleError(error, 'Failed to fetch products from Paddle');
+      throw this.handlePaddleError(error, MESSAGES.PADDLE.FETCH_PRODUCTS_FAILED);
     }
   }
 
@@ -68,7 +69,7 @@ export class PaddleService {
         items: [{ priceId, quantity: 1 }], prorationBillingMode: 'prorated_immediately',
       });
     } catch (error: any) {
-      throw this.handlePaddleError(error, 'Failed to update subscription');
+      throw this.handlePaddleError(error, MESSAGES.PADDLE.UPDATE_FAILED);
     }
   }
 
@@ -80,7 +81,7 @@ export class PaddleService {
       if (query.status) params.status = query.status;
       return await (await paddle.transactions.list(params).next());
     } catch (error) {
-      throw this.handlePaddleError(error, 'Failed to fetch transactions from Paddle');
+      throw this.handlePaddleError(error, MESSAGES.PADDLE.FETCH_TRANSACTIONS_FAILED);
     }
   }
 
@@ -206,13 +207,13 @@ export class PaddleService {
       const code = error.code;
 
       if (code === 'invalid_token' || code === 'authentication_malformed' || code === 'authentication_missing') {
-        throw new UnauthorizedError('Paddle API authentication failed. Check your API key.');
+        throw new UnauthorizedError(MESSAGES.PADDLE.AUTH_FAILED);
       }
       if (code === 'forbidden') {
-        throw new ForbiddenError('Paddle API permission denied. Check your API key permissions.');
+        throw new ForbiddenError(MESSAGES.PADDLE.FORBIDDEN);
       }
       if (code === 'too_many_requests') {
-        throw new ServerError('Paddle API rate limit exceeded. Please try again later.');
+        throw new ServerError(MESSAGES.PADDLE.RATE_LIMITED);
       }
 
       throw new ServerError(`Paddle API error: ${error.detail || error.message || fallbackMessage}`);

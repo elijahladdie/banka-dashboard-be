@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { ConflictError, UnauthorizedError, NotFoundError, ValidationError } from '../helpers';
 import { hashPassword, verifyPassword, createAuthResponse, sanitizeUser, generateResetToken, extractRoles } from '../helpers/auth.helper';
+import { MESSAGES } from '../constants';
 
 export class AuthService {
   private readonly authRepository: AuthRepository;
@@ -23,7 +24,7 @@ export class AuthService {
 
   async signUp(input: SignUpInput): Promise<AuthResponse> {
     const existing = await this.authRepository.findByEmail(input.email);
-    if (existing) throw new ConflictError('A user with this email already exists.');
+    if (existing) throw new ConflictError(MESSAGES.AUTH.EMAIL_EXISTS);
 
     const password = await hashPassword(String(input.password));
     const user = await this.authRepository.createUserWithRole({
@@ -40,14 +41,14 @@ export class AuthService {
 
   async signIn(input: SignInInput): Promise<AuthResponse> {
     const user = await this.authRepository.findByEmailWithRoles(input.email.toLowerCase());
-    if (!user) throw new UnauthorizedError('Invalid email or password.');
-    if (user.closedAt) throw new UnauthorizedError('This account has been deactivated.');
-    if (user.status === 'SUSPENDED') throw new UnauthorizedError('This account has been suspended.');
-    if (user.status === 'INACTIVE') throw new UnauthorizedError('This account is inactive.');
-    if (!user.isRegComplete) throw new UnauthorizedError('Please complete your registration first.');
+    if (!user) throw new UnauthorizedError(MESSAGES.AUTH.INVALID_CREDENTIALS);
+    if (user.closedAt) throw new UnauthorizedError(MESSAGES.AUTH.ACCOUNT_DEACTIVATED);
+    if (user.status === 'SUSPENDED') throw new UnauthorizedError(MESSAGES.AUTH.ACCOUNT_SUSPENDED);
+    if (user.status === 'INACTIVE') throw new UnauthorizedError(MESSAGES.AUTH.ACCOUNT_INACTIVE);
+    if (!user.isRegComplete) throw new UnauthorizedError(MESSAGES.AUTH.COMPLETE_REGISTRATION_FIRST);
 
     const valid = await verifyPassword(input.password, user.password);
-    if (!valid) throw new UnauthorizedError('Invalid email or password.');
+    if (!valid) throw new UnauthorizedError(MESSAGES.AUTH.INVALID_CREDENTIALS);
 
     await this.authRepository.updateUser(user.id, { lastLoginAt: new Date() });
     const { user: safeUser, token } = createAuthResponse({ ...user, userRoles: user.userRoles });
@@ -56,8 +57,8 @@ export class AuthService {
 
   async completeRegistration(input: CompleteRegistrationInput): Promise<AuthResponse> {
     const user = await this.authRepository.findByEmailWithRoles(input.email);
-    if (!user) throw new NotFoundError('User');
-    if (user.isRegComplete) throw new ValidationError('Registration is already completed.');
+    if (!user) throw new NotFoundError(MESSAGES.USERS.NOT_FOUND);
+    if (user.isRegComplete) throw new ValidationError(MESSAGES.AUTH.REGISTRATION_ALREADY_COMPLETED);
 
     const password = await hashPassword(input.password);
     const updated = await this.authRepository.updateUser(user.id, {
@@ -72,7 +73,7 @@ export class AuthService {
     const jwt = await import('jsonwebtoken');
     const { JWT_ACCESS_SECRET } = await import('../constants/constants');
     const decoded = jwt.default.verify(token, JWT_ACCESS_SECRET) as JwtDecodedPayload;
-    if (!decoded?.email) throw new ValidationError('Invalid token.');
+    if (!decoded?.email) throw new ValidationError(MESSAGES.AUTH.INVALID_TOKEN_SHORT);
 
     const user = await this.authRepository.findByEmail(decoded.email.toLowerCase());
     if (!user) return { exists: false };
@@ -81,7 +82,7 @@ export class AuthService {
 
   async forgotPassword(email: string): Promise<{ resetToken: string }> {
     const user = await this.authRepository.findByEmail(email.toLowerCase());
-    if (!user) throw new ValidationError('If the email exists, a reset link has been sent.');
+    if (!user) throw new ValidationError(MESSAGES.AUTH.FORGOT_PASSWORD);
     const { resetToken } = generateResetToken();
     return { resetToken };
   }

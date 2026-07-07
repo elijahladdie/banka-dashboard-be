@@ -1,16 +1,17 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../types';
 import { ForbiddenError } from '../helpers';
+import { MESSAGES } from '../constants';
 
 export function rolesGuard(...allowedRoles: string[]) {
   return (req: AuthenticatedRequest, _res: Response, next: NextFunction): void => {
     if (!req.user) {
-      throw new ForbiddenError('Authentication required.');
+      throw new ForbiddenError(MESSAGES.AUTH.AUTH_REQUIRED);
     }
 
     const hasRole = req.user.roles.some((role) => allowedRoles.includes(role));
     if (!hasRole) {
-      throw new ForbiddenError('Insufficient role permissions.');
+      throw new ForbiddenError(MESSAGES.AUTH.INSUFFICIENT_PERMISSIONS);
     }
 
     next();

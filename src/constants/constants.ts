@@ -3,6 +3,8 @@ import { config } from "dotenv";
 import { Environment } from "@paddle/paddle-node-sdk";
 config();
 
+export { MESSAGES } from './messages';
+
 const env = cleanEnv(process.env, {
   CORS_ORIGIN: str(),
   NODE_ENV: str({ choices: ["development", "production", "test"] }),

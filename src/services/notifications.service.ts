@@ -4,6 +4,7 @@ import { NotFoundError } from '../helpers';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildNotificationsFilter } from '../helpers/query-builder.helper';
+import { MESSAGES } from '../constants';
 
 export class NotificationsService {
   private readonly notificationsRepository: NotificationsRepository;
@@ -21,7 +22,7 @@ export class NotificationsService {
 
   async findById(id: string): Promise<Notification> {
     const notification = await this.notificationsRepository.findById(id);
-    if (!notification) throw new NotFoundError('Notification');
+    if (!notification) throw new NotFoundError(MESSAGES.NOTIFICATIONS.NOT_FOUND);
     return notification;
   }
 

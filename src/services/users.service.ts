@@ -4,6 +4,7 @@ import { NotFoundError } from '../helpers';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildUsersFilter } from '../helpers/query-builder.helper';
+import { MESSAGES } from '../constants';
 
 export class UsersService {
   private readonly usersRepository: UsersRepository;
@@ -21,7 +22,7 @@ export class UsersService {
 
   async findById(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({ id });
-    if (!user) throw new NotFoundError('User');
+    if (!user) throw new NotFoundError(MESSAGES.USERS.NOT_FOUND);
     return user;
   }
 

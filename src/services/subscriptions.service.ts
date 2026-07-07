@@ -5,6 +5,7 @@ import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildSubscriptionsFilter } from '../helpers/query-builder.helper';
 import { PaddleService } from './paddle.service';
+import { MESSAGES } from '../constants';
 
 export class SubscriptionsService {
   private readonly subscriptionsRepository: SubscriptionsRepository;
@@ -25,7 +26,7 @@ export class SubscriptionsService {
 
   async findById(id: string): Promise<Subscription> {
     const subscription = await this.subscriptionsRepository.findOne({ id });
-    if (!subscription) throw new NotFoundError('Subscription');
+    if (!subscription) throw new NotFoundError(MESSAGES.SUBSCRIPTIONS.NOT_FOUND_SINGLE);
     return subscription;
   }
 

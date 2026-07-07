@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import logger from './utils/logger';
 import { ResponseHandler } from './utils/response-handler';
 import router from './routes';
-import { CORS_ORIGIN, NODE_ENV } from './constants/constants';
+import { CORS_ORIGIN, NODE_ENV, MESSAGES } from './constants/constants';
 
 const app = express();
 
@@ -36,7 +36,7 @@ if (NODE_ENV !== 'test') {
 app.use('/api', router)
 
 app.use((_req, res) => {
-  ResponseHandler.error(res, 404, 'Route not found', 404);
+  ResponseHandler.error(res, 404, MESSAGES.ROUTE_NOT_FOUND, 404);
 });
 
 app.use(errorHandler);

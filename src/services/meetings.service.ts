@@ -4,6 +4,7 @@ import { NotFoundError } from '../helpers';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildMeetingsFilter } from '../helpers/query-builder.helper';
+import { MESSAGES } from '../constants';
 
 export class MeetingsService {
   private readonly meetingsRepository: MeetingsRepository;
@@ -21,7 +22,7 @@ export class MeetingsService {
 
   async findById(id: string): Promise<Meeting> {
     const meeting = await this.meetingsRepository.findById(id);
-    if (!meeting) throw new NotFoundError('Meeting');
+    if (!meeting) throw new NotFoundError(MESSAGES.MEETINGS.NOT_FOUND);
     return meeting;
   }
 

@@ -2,13 +2,13 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest } from '../types';
 import { UnauthorizedError } from '../helpers';
-import { JWT_ACCESS_SECRET } from '../constants/constants';
+import { JWT_ACCESS_SECRET, MESSAGES } from '../constants/constants';
 
 export function jwtAuthGuard(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new UnauthorizedError('No token provided.');
+    throw new UnauthorizedError(MESSAGES.AUTH.NO_TOKEN);
   }
 
   const token = authHeader.split(' ')[1];
@@ -21,6 +21,6 @@ export function jwtAuthGuard(req: AuthenticatedRequest, _res: Response, next: Ne
     if (error instanceof UnauthorizedError) {
       throw error;
     }
-    throw new UnauthorizedError('Invalid or expired token.');
+    throw new UnauthorizedError(MESSAGES.AUTH.INVALID_TOKEN);
   }
 }

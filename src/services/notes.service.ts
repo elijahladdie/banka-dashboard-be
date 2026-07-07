@@ -3,6 +3,7 @@ import { NotesRepository } from '../repositories/implementations/notes.repositor
 import { NotFoundError } from '../helpers';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { MESSAGES } from '../constants';
 
 export class NotesService {
   private readonly notesRepository: NotesRepository;
@@ -21,7 +22,7 @@ export class NotesService {
 
   async findById(id: string): Promise<AdvisoryNote> {
     const note = await this.notesRepository.findById(id);
-    if (!note) throw new NotFoundError('Advisory note');
+    if (!note) throw new NotFoundError(MESSAGES.NOTES.NOT_FOUND);
     return note;
   }
 

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AssignmentsService } from '../services/assignments.service';
 import { AuthenticatedRequest } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
+import { MESSAGES } from '../constants';
 
 export class AssignmentsController {
   private readonly assignmentsService: AssignmentsService;
@@ -11,7 +12,7 @@ export class AssignmentsController {
 
   async findAll(req: Request, res: Response) {
     const result = await this.assignmentsService.findAll(req.query);
-    ResponseHandler.success(res, result, 'Assignments retrieved successfully.');
+    ResponseHandler.success(res, result, MESSAGES.ASSIGNMENTS.RETRIEVED);
   }
 
   async assign(req: AuthenticatedRequest, res: Response) {
@@ -21,7 +22,7 @@ export class AssignmentsController {
       advisorId,
       req.user!.userId
     );
-    ResponseHandler.success(res, assignment, 'Client assigned to advisor successfully.', 100, 201);
+    ResponseHandler.success(res, assignment, MESSAGES.ASSIGNMENTS.ASSIGNED, 100, 201);
   }
 
   async endAssignment(req: AuthenticatedRequest, res: Response) {
@@ -29,12 +30,12 @@ export class AssignmentsController {
       req.params.id,
       req.user!.userId
     );
-    ResponseHandler.success(res, assignment, 'Assignment ended successfully.');
+    ResponseHandler.success(res, assignment, MESSAGES.ASSIGNMENTS.ENDED);
   }
 
   async getActiveAssignment(req: AuthenticatedRequest, res: Response) {
     const assignment = await this.assignmentsService.getActiveAssignment(req.params.clientId);
-    const message = assignment ? 'Active assignment found.' : 'No active assignment.';
+    const message = assignment ? MESSAGES.ASSIGNMENTS.ACTIVE_FOUND : MESSAGES.ASSIGNMENTS.NO_ACTIVE;
     ResponseHandler.success(res, assignment, message);
   }
 }
