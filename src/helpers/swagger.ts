@@ -523,7 +523,7 @@ const options: swaggerJsdoc.Options = {
           responses: { 201: { description: 'Subscription created' } },
         },
       },
-      '/api/subscriptions/my': {
+      '/api/subscriptionsme': {
         get: {
           tags: ['Subscriptions'],
           summary: 'Get current user subscription',
@@ -730,7 +730,7 @@ const options: swaggerJsdoc.Options = {
           responses: { 201: { description: 'Goal created' } },
         },
       },
-      '/api/goals/my': {
+      '/api/goalsme': {
         get: {
           tags: ['Goals'],
           summary: 'Get current user goals',

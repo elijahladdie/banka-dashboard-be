@@ -1,7 +1,9 @@
 import { Goal, NotificationType } from '@prisma/client';
 import { GoalsRepository } from '../repositories/implementations/goals.repository';
+import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { NotificationsRepository } from '../repositories/implementations/notifications.repository';
-import { NotFoundError } from '../helpers';
+import { NotFoundError, ValidationError } from '../helpers';
+import { getSubscriptionAccessState } from '../helpers/subscription-access.helper';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildGoalsFilter } from '../helpers/query-builder.helper';
@@ -10,10 +12,12 @@ import { MESSAGES } from '../constants';
 
 export class GoalsService {
   private readonly goalsRepository: GoalsRepository;
+  private readonly subscriptionsRepository: SubscriptionsRepository;
   private readonly notificationsRepository: NotificationsRepository;
 
   constructor() {
     this.goalsRepository = new GoalsRepository();
+    this.subscriptionsRepository = new SubscriptionsRepository();
     this.notificationsRepository = new NotificationsRepository();
   }
 
@@ -38,17 +42,46 @@ export class GoalsService {
     return paginateResult(goals, total, pagination);
   }
 
-  async create(data: Partial<Goal>, _actorId: string): Promise<Goal> {
+  /**
+   * Check whether the client (identified by clientId) is allowed to write.
+   * Throws ValidationError if not in State A or B.
+   */
+  private async requireWriteAccess(clientId: string, action: string): Promise<void> {
+    const subscription = await this.subscriptionsRepository.findOne({ userId: clientId });
+    if (!subscription) return; // No sub yet, let other guards handle it
+    const access = getSubscriptionAccessState({
+      status: subscription.status,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      endsAt: subscription.endsAt,
+      trialEnd: subscription.trialEnd,
+    });
+    if (!access.canWrite) {
+      if (access.isLocked) {
+        throw new ValidationError(
+          'Your read-only access period has ended. Please resubscribe to manage goals.'
+        );
+      }
+      throw new ValidationError(
+        `You are in read-only mode and cannot ${action}. Please resubscribe to continue.`
+      );
+    }
+  }
+
+  async create(data: Partial<Goal>, actorId: string): Promise<Goal> {
+    const clientId = data.clientId as string;
+    await this.requireWriteAccess(clientId, 'create new goals');
     return this.goalsRepository.create(data);
   }
 
-  async update(id: string, data: Partial<Goal>, _actorId: string): Promise<Goal> {
-    await this.findById(id);
+  async update(id: string, data: Partial<Goal>, actorId: string): Promise<Goal> {
+    const goal = await this.findById(id);
+    await this.requireWriteAccess(goal.clientId, 'edit goals');
     return this.goalsRepository.update(id, data);
   }
 
-  async updateProgress(id: string, currentAmount: number, _actorId: string): Promise<Goal> {
+  async updateProgress(id: string, currentAmount: number, actorId: string): Promise<Goal> {
     const goal = await this.findById(id);
+    await this.requireWriteAccess(goal.clientId, 'update goal progress');
     const updateData = calculateGoalStatus(goal, currentAmount);
     const updated = await this.goalsRepository.update(id, updateData);
 

@@ -1,7 +1,9 @@
 import { Meeting, NotificationType } from '@prisma/client';
 import { MeetingsRepository } from '../repositories/implementations/meetings.repository';
+import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { NotificationsRepository } from '../repositories/implementations/notifications.repository';
-import { NotFoundError } from '../helpers';
+import { NotFoundError, ValidationError } from '../helpers';
+import { getSubscriptionAccessState } from '../helpers/subscription-access.helper';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildMeetingsFilter } from '../helpers/query-builder.helper';
@@ -10,10 +12,12 @@ import prisma from '../utils/prisma';
 
 export class MeetingsService {
   private readonly meetingsRepository: MeetingsRepository;
+  private readonly subscriptionsRepository: SubscriptionsRepository;
   private readonly notificationsRepository: NotificationsRepository;
 
   constructor() {
     this.meetingsRepository = new MeetingsRepository();
+    this.subscriptionsRepository = new SubscriptionsRepository();
     this.notificationsRepository = new NotificationsRepository();
   }
 
@@ -32,6 +36,29 @@ export class MeetingsService {
   }
 
   async create(data: Partial<Meeting>, _actorId: string): Promise<Meeting> {
+    // ── Check client's subscription access state (Section 6: Read-Only Mode) ──
+    if (data.clientId) {
+      const subscription = await this.subscriptionsRepository.findOne({ userId: data.clientId as string });
+      if (subscription) {
+        const access = getSubscriptionAccessState({
+          status: subscription.status,
+          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          endsAt: subscription.endsAt,
+          trialEnd: subscription.trialEnd,
+        });
+        if (!access.canWrite) {
+          if (access.isLocked) {
+            throw new ValidationError(
+              'Your read-only access period has ended. Please resubscribe to schedule meetings.'
+            );
+          }
+          throw new ValidationError(
+            'You are in read-only mode. Please resubscribe to schedule new meetings.'
+          );
+        }
+      }
+    }
+
     const meeting = await this.meetingsRepository.create(data);
 
     // ── Notify both client and advisor about the scheduled meeting ──

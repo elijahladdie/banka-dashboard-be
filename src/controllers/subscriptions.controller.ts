@@ -41,7 +41,19 @@ export class SubscriptionsController {
   }
 
   async cancel(req: AuthenticatedRequest, res: Response) {
-    const subscription = await this.subscriptionsService.cancelSubscription(req.params.id, req.user!.userId);
+    const { reason } = req.body;
+    const subscription = await this.subscriptionsService.cancelSubscription(req.params.id, req.user!.userId, reason);
     ResponseHandler.success(res, subscription, MESSAGES.SUBSCRIPTIONS.CANCELED);
+  }
+
+  async reactivate(req: AuthenticatedRequest, res: Response) {
+    const subscription = await this.subscriptionsService.reactivateSubscription(req.params.id, req.user!.userId);
+    ResponseHandler.success(res, subscription, MESSAGES.SUBSCRIPTIONS.UPDATED);
+  }
+
+  async getAccessInfo(req: AuthenticatedRequest, res: Response) {
+    const userId = req.params.userId || req.user!.userId;
+    const info = await this.subscriptionsService.getAccessInfo(userId);
+    ResponseHandler.success(res, info, MESSAGES.SUCCESS);
   }
 }

@@ -6,6 +6,7 @@ import { AssignmentsRepository } from '../repositories/implementations/assignmen
 import { NotesRepository } from '../repositories/implementations/notes.repository';
 import { MeetingsRepository } from '../repositories/implementations/meetings.repository';
 import { ValidationError, NotFoundError } from '../helpers';
+import { getSubscriptionAccessState, isWriteAllowed } from '../helpers/subscription-access.helper';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { buildServiceRequestsFilter } from '../helpers/query-builder.helper';
@@ -59,7 +60,6 @@ export class ServiceRequestsService {
   }
 
   async create(data: Partial<ServiceRequest>, clientId: string): Promise<ServiceRequest> {
-    // ── Tier gating: check subscription plan vs service type ──
     const subscription = await this.subscriptionsRepository.findOne({ userId: clientId });
     if (!subscription) {
       throw new ValidationError('No active subscription found. Please subscribe to a plan first.');
@@ -73,18 +73,26 @@ export class ServiceRequestsService {
       );
     }
 
-    // ── Check subscription status (PAST_DUE/EXPIRED should block) ──
-    if (subscription.status === 'PAST_DUE' || subscription.status === 'EXPIRED' || subscription.status === 'CANCELED') {
+    const access = getSubscriptionAccessState({
+      status: subscription.status,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      endsAt: subscription.endsAt,
+      trialEnd: subscription.trialEnd,
+    });
+
+    if (!access.canWrite) {
+      if (access.isLocked) {
+        throw new ValidationError(
+          'Your read-only access period has ended. Please resubscribe to continue working with your advisor.'
+        );
+      }
       throw new ValidationError(
-        `Your subscription is ${subscription.status.toLowerCase()}. Please update your billing to continue.`
+        `Your subscription is ${subscription.status.toLowerCase()}. You are in read-only mode. Please resubscribe to submit new requests.`
       );
     }
 
-    // ── Create the request ──
     const request = await this.repository.create({ ...data, clientId });
 
-    // ── Notify the advisor assigned to this client ──
-    // ClientAssignment.clientId references Subscription.id, so first find the user's subscription
     const userSubscription = await this.subscriptionsRepository.findOne({ userId: clientId });
     if (userSubscription) {
       const activeAssignment = await this.assignmentsRepository.findActiveByClient(userSubscription.id);
@@ -120,7 +128,6 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequest> {
     const existing = await this.findById(id);
 
-    // ── Enforce valid lifecycle transitions ──
     const validTransitions: Record<string, RequestStatus[]> = {
       PENDING: ['ACCEPTED', 'REJECTED', 'CANCELLED'],
       ACCEPTED: ['COMPLETED', 'CANCELLED'],
@@ -141,8 +148,6 @@ export class ServiceRequestsService {
       ...(advisorResponse ? { advisorResponse } : {}),
     });
 
-    // ── Create AdvisoryNote logging the advisor's response ──
-    // ServiceRequest.advisorId is the Advisor.id, clientId is User.id
     if (advisorResponse || status !== 'CANCELLED') {
       const noteTitle = status === 'ACCEPTED'
         ? `Request Accepted: ${existing.serviceType.replace(/_/g, ' ')}`
@@ -164,11 +169,9 @@ export class ServiceRequestsService {
       } as Partial<AdvisoryNote>);
     }
 
-    // ── Notifications on status transitions ──
     const clientId = existing.clientId;
 
     if (status === 'ACCEPTED') {
-      // Notify client that request was accepted (INFO)
       await this.notificationsRepository.create({
         userId: clientId,
         title: 'Request Accepted',
@@ -176,7 +179,6 @@ export class ServiceRequestsService {
         type: 'INFO' as NotificationType,
       });
     } else if (status === 'COMPLETED') {
-      // Notify client that request was completed (SUCCESS)
       await this.notificationsRepository.create({
         userId: clientId,
         title: 'Request Completed',
@@ -184,7 +186,6 @@ export class ServiceRequestsService {
         type: 'SUCCESS' as NotificationType,
       });
     } else if (status === 'REJECTED') {
-      // Notify client that request was rejected (WARNING)
       const reason = advisorResponse ? ` Reason: ${advisorResponse}` : '';
       await this.notificationsRepository.create({
         userId: clientId,
@@ -219,7 +220,6 @@ export class ServiceRequestsService {
   ): Promise<{ serviceRequest: ServiceRequest; meeting: any }> {
     const existing = await this.findById(serviceRequestId);
 
-    // Create the meeting
     const meeting = await this.meetingsRepository.create({
       advisorId: existing.advisorId,
       clientId: existing.clientId,
@@ -232,13 +232,11 @@ export class ServiceRequestsService {
       status: 'SCHEDULED',
     });
 
-    // Link meeting to service request and auto-accept
     const updated = await this.repository.update(serviceRequestId, {
       meetingId: meeting.id,
       status: existing.status === 'PENDING' ? 'ACCEPTED' : existing.status,
     });
 
-    // Create AdvisoryNote logging the scheduled meeting
     await this.notesRepository.create({
       advisorId: existing.advisorId,
       clientId: existing.clientId,
@@ -246,7 +244,6 @@ export class ServiceRequestsService {
       content: `A meeting has been scheduled for ${new Date(meetingData.meetingDate).toLocaleString()}. Link: ${meetingData.meetingLink || 'TBD'}. ${meetingData.description ? `Notes: ${meetingData.description}` : ''}`,
     } as Partial<AdvisoryNote>);
 
-    // Notify both parties (already done in MeetingsService.create, but we do it explicitly)
     const advisorRecord = await prisma.advisor.findUnique({
       where: { id: existing.advisorId },
       select: { userId: true },

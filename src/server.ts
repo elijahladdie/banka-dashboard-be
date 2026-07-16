@@ -5,13 +5,15 @@ import app from './app';
 import logger from './utils/logger';
 import prisma from './utils/prisma';
 import { PORT, NODE_ENV } from './constants/constants';
+import { startSubscriptionExpiryJob } from './jobs/subscription-expiry.job';
 
 async function main() {
   try {
     // Connect to database
     await prisma.$connect();
     logger.info('Connected to PostgreSQL database');
-
+    
+    startSubscriptionExpiryJob();
     // Start server
     app.listen(PORT, () => {
       logger.info(`Banka API server running on port ${PORT}`);

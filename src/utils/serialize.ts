@@ -14,7 +14,8 @@ export function serializeResult<T>(obj: T): unknown {
       }
 
       if (value instanceof Date) {
-        return value.toISOString();
+        console.log(value)
+        return value.toString();
       }
 
       if (visited.has(value)) {

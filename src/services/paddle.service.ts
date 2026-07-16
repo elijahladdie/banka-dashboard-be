@@ -30,6 +30,7 @@ export class PaddleService {
     await this.subscriptionsRepository.update(subscription.id, {
       subscriptionId, plan: newPlan, status: normalized.status,
       startsAt: normalized.startsAt, endsAt: normalized.endsAt,
+      trialEnd: normalized.trialEnd, trialStart: normalized.trialStart,
       canceledAt: normalized.canceledAt, billingInterval: newInterval,
       metadata: { currency: normalized.currency, amount: normalized.amount, billingCycle: normalized.billingCycle, event: event.eventType },
     });

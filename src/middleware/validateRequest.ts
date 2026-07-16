@@ -7,6 +7,7 @@ import { PaddleActivation, PaddleCreation } from '../helpers/paddle';
 
 export function validateRequest(schema: ZodSchema) {
   return (req: Request, _res: Response, next: NextFunction): void => {
+    console.log(req.params)
     try {
       const parsed = schema.parse({
         body: req.body,
