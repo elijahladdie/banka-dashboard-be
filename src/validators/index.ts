@@ -16,12 +16,6 @@ export {
 } from './assignments.validator';
 
 export {
-  createMeetingSchema,
-  updateMeetingSchema,
-  updateMeetingStatusSchema,
-} from './meetings.validator';
-
-export {
   createGoalSchema,
   updateGoalSchema,
   updateGoalProgressSchema,
@@ -32,22 +26,9 @@ export {
 } from './subscriptions.validator';
 
 export {
-  createNoteSchema,
-  updateNoteSchema,
-} from './notes.validator';
-
-export {
   createServiceRequestSchema,
   updateServiceRequestSchema,
   respondServiceRequestSchema,
   linkMeetingSchema,
+  scheduleMeetingSchema,
 } from './service-requests.validator';
-
-export {
-  updateProfileSchema,
-  changePasswordSchema,
-} from './settings.validator';
-
-export {
-  updateUserSchema,
-} from './users.validator';

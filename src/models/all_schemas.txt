@@ -1,0 +1,264 @@
+]633;E;for f in $(cat me.txt);afb67dae-490b-4523-8211-17166aff959c]633;C===== advisor.model.prisma =====
+model Advisor {
+  id             String                 @id @default(uuid()) @db.Uuid
+  userId         String                 @unique @db.Uuid
+  employeeCode   String                 @unique @db.VarChar(100)
+  specialization String?                @db.VarChar(255)
+  bio            String?
+  maxClients     Int                    @default(20)
+  currentClients Int                    @default(0)
+  isAvailable    Boolean                @default(true)
+  createdAt      DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @db.Timestamptz(6)
+  closedAt      DateTime?              @db.Timestamptz(6)
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  advisoryNotes  AdvisoryNote[]
+  meetings       Meeting[]              @relation("AdvisorMeetings")
+  assignments    ClientAssignment[] @relation("Advisor")
+  serviceRequests ServiceRequest[]
+}
+
+===== advisor.note.model.prisma =====
+model AdvisoryNote {
+  id           String   @id @default(uuid()) @db.Uuid
+  advisorId    String   @db.Uuid
+  clientId String   @db.Uuid
+  title        String   @db.VarChar(255)
+  content      String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  advisor      Advisor  @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  client   User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+===== goal.model.prisma =====
+model Goal {
+  id            String     @id @default(uuid()) @db.Uuid
+  clientId  String     @db.Uuid
+  title         String     @db.VarChar(255)
+  description   String?
+  targetAmount  Decimal?   @db.Decimal(15, 2)
+  currentAmount Decimal    @default(0) @db.Decimal(15, 2)
+  targetDate    DateTime?  @db.Timestamptz(6)
+  status        GoalStatus @default(NOT_STARTED)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(6)
+  closedAt     DateTime?  @db.Timestamptz(6)
+  client    User       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+===== meeting.model.prisma =====
+model Meeting {
+  id           String        @id @default(uuid()) @db.Uuid
+  advisorId    String        @db.Uuid
+  clientId String        @db.Uuid
+  title        String        @db.VarChar(255)
+  description  String?
+  meetingDate  DateTime      @db.Timestamptz(6)
+  starts_at    DateTime?
+  ends_at      DateTime?
+  status       MeetingStatus @default(SCHEDULED)
+  meetingLink  String?
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+  advisor      Advisor       @relation("AdvisorMeetings", fields: [advisorId], references: [id], onDelete: Cascade)
+  client   User          @relation("ClientMeetings", fields: [clientId], references: [id], onDelete: Cascade)
+  serviceRequest ServiceRequest? @relation("ServiceRequestMeeting")
+}
+
+===== notifications.model.prisma =====
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  title     String           @db.VarChar(255)
+  message   String
+  type      NotificationType @default(INFO)
+  readAt    DateTime?        @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+===== role.model.prisma =====
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles UserRole[]
+}
+
+
+===== schema.prisma =====
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum SubscriptionPlan {
+  STARTER
+  PRO
+  ADVANCED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  TRIALING
+  CANCELED
+  EXPIRED
+}
+
+enum BillingInterval {
+  month
+  year
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum ReportType {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+  CUSTOM
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+  REMINDER
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+===== service.request.model.prisma =====
+model ServiceRequest {
+  id              String        @id @default(uuid()) @db.Uuid
+  clientId        String        @db.Uuid
+  advisorId       String        @db.Uuid
+  serviceType     String        @db.VarChar(255)
+  description     String?
+  status          RequestStatus @default(PENDING)
+  meetingId       String?       @unique @db.Uuid
+  advisorResponse String?
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(6)
+  client          User          @relation("ClientRequests", fields: [clientId], references: [id], onDelete: Cascade)
+  advisor         Advisor       @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  meeting         Meeting?      @relation("ServiceRequestMeeting", fields: [meetingId], references: [id])
+}
+
+===== subscriber.assignments.model.prisma =====
+model ClientAssignment {
+  id             String       @id @default(uuid()) @db.Uuid
+  clientId   String       @db.Uuid
+  advisorId      String       @db.Uuid
+  assignedBy     String       @db.Uuid
+  assignedAt     DateTime     @default(now()) @db.Timestamptz(6)
+  endedAt        DateTime?    @db.Timestamptz(6)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+  advisor        Advisor      @relation("Advisor", fields: [advisorId], references: [id], onDelete: Cascade)
+  assignedByUser User         @relation("AssignedBy", fields: [assignedBy], references: [id])
+  client     Subscription @relation("Client", fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, advisorId, isActive])
+}
+
+===== subscription.model.prisma =====
+model Subscription {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  userId               String                 @unique @db.Uuid
+  plan                 SubscriptionPlan       @default(STARTER)
+  status               SubscriptionStatus     @default(TRIALING)
+  billingInterval      BillingInterval        @default(month)
+  customerId           String?                @db.VarChar(255)
+  subscriptionId       String?                @db.VarChar(255)
+  startsAt             DateTime?              @db.Timestamptz(6)
+  endsAt               DateTime?              @db.Timestamptz(6)
+  cancelAtPeriodEnd    Boolean                @default(false)
+  canceledAt           DateTime?              @db.Timestamptz(6)
+  trialStart           DateTime?              @db.Timestamptz(6)
+  trialEnd             DateTime?              @db.Timestamptz(6)
+  metadata             Json?
+  createdAt            DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime               @updatedAt @db.Timestamptz(6)
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientAssignment ClientAssignment[] @relation("Client")
+}
+
+===== user.model.prisma =====
+model User {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  email                 String                 @unique @db.VarChar(255)
+  password          String                 @db.VarChar(255)
+  firstName             String                 @db.VarChar(255)
+  lastName              String                 @db.VarChar(255)
+  phoneNumber           String?                @db.VarChar(50)
+  status                UserStatus             @default(PENDING)
+  isVerified         Boolean                @default(false)
+  lastLoginAt           DateTime?              @db.Timestamptz(6)
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime               @updatedAt @db.Timestamptz(6)
+  closedAt             DateTime?              @db.Timestamptz(6)
+  isRegComplete Boolean                @default(true)
+  source                String?                @db.VarChar(50)
+
+  advisor               Advisor?
+  advisoryNotes         AdvisoryNote[]
+  userRoles    UserRole[]
+  goals                 Goal[]
+  meetingsAsClient  Meeting[]              @relation("ClientMeetings")
+  serviceRequests   ServiceRequest[]       @relation("ClientRequests")
+  notifications         Notification[]
+  assignmentsCreated    ClientAssignment[] @relation("AssignedBy")
+  subscription          Subscription?
+}
+
+===== user.role.model.prisma =====
+model UserRole {
+  id     String @id @default(uuid())
+  userId String  @db.Uuid
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+

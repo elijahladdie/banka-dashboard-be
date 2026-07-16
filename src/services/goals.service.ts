@@ -1,5 +1,6 @@
-import { Goal } from '@prisma/client';
+import { Goal, NotificationType } from '@prisma/client';
 import { GoalsRepository } from '../repositories/implementations/goals.repository';
+import { NotificationsRepository } from '../repositories/implementations/notifications.repository';
 import { NotFoundError } from '../helpers';
 import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
@@ -9,8 +10,11 @@ import { MESSAGES } from '../constants';
 
 export class GoalsService {
   private readonly goalsRepository: GoalsRepository;
+  private readonly notificationsRepository: NotificationsRepository;
+
   constructor() {
     this.goalsRepository = new GoalsRepository();
+    this.notificationsRepository = new NotificationsRepository();
   }
 
   async findAll(query: QueryParams): Promise<PaginatedResult<Goal>> {
@@ -46,7 +50,50 @@ export class GoalsService {
   async updateProgress(id: string, currentAmount: number, _actorId: string): Promise<Goal> {
     const goal = await this.findById(id);
     const updateData = calculateGoalStatus(goal, currentAmount);
-    return this.goalsRepository.update(id, updateData);
+    const updated = await this.goalsRepository.update(id, updateData);
+
+    // ── Check if goal reached a milestone for notification ──
+    if (updated.status === 'COMPLETED' && goal.status !== 'COMPLETED') {
+      await this.notificationsRepository.create({
+        userId: goal.clientId,
+        title: 'Goal Completed',
+        message: `Congratulations! Your goal "${goal.title}" has been achieved.`,
+        type: 'SUCCESS' as NotificationType,
+      });
+    }
+
+    return updated;
+  }
+
+  /**
+   * Check for stalled goals and notify the client.
+   * A goal is considered stalled if it's IN_PROGRESS or NOT_STARTED,
+   * has a targetDate that's within 7 days, and currentAmount is less than targetAmount.
+   */
+  async checkStalledGoals(): Promise<void> {
+    const now = new Date();
+    const nearFuture = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const allGoals = await this.goalsRepository.findAll({
+      where: {
+        status: { in: ['IN_PROGRESS', 'NOT_STARTED'] },
+        targetDate: { lte: nearFuture, gte: now },
+      },
+    });
+
+    for (const goal of allGoals[0]) {
+      const targetAmount = goal.targetAmount ? Number(goal.targetAmount) : null;
+      const currentAmount = Number(goal.currentAmount);
+
+      if (targetAmount && currentAmount < targetAmount) {
+        await this.notificationsRepository.create({
+          userId: goal.clientId,
+          title: 'Goal Reminder',
+          message: `Your goal "${goal.title}" is approaching its target date. Current progress: ${currentAmount}/${targetAmount}.`,
+          type: 'REMINDER' as NotificationType,
+        });
+      }
+    }
   }
 
   async softDelete(id: string, _actorId: string): Promise<Goal> {

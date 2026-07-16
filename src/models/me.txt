@@ -1,0 +1,1 @@
+advisor.model.prisma advisor.note.model.prisma goal.model.prisma meeting.model.prisma notifications.model.prisma role.model.prisma schema.prisma service.request.model.prisma subscriber.assignments.model.prisma subscription.model.prisma user.model.prisma user.role.model.prisma

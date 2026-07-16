@@ -3,7 +3,7 @@ import { ServiceRequestsController } from '../controllers/service-requests.contr
 import { asyncWrapper } from '../middleware/async-wrapper';
 import { jwtAuthGuard, isAdvisor, isClientOrAdvisor } from '../middleware';
 import { validateRequest } from '../middleware/validateRequest';
-import { createServiceRequestSchema, updateServiceRequestSchema, respondServiceRequestSchema, linkMeetingSchema } from '../validators';
+import { createServiceRequestSchema, updateServiceRequestSchema, respondServiceRequestSchema, linkMeetingSchema, scheduleMeetingSchema } from '../validators';
 
 const router = Router();
 const controller = new ServiceRequestsController();
@@ -20,5 +20,6 @@ router.post('/', isClientOrAdvisor, validateRequest(createServiceRequestSchema),
 router.put('/:id', validateRequest(updateServiceRequestSchema), asyncWrapper(controller.update.bind(controller)));
 router.patch('/:id/respond', isAdvisor, validateRequest(respondServiceRequestSchema), asyncWrapper(controller.respond.bind(controller)));
 router.patch('/:id/link-meeting', isAdvisor, validateRequest(linkMeetingSchema), asyncWrapper(controller.linkMeeting.bind(controller)));
+router.post('/:id/schedule-meeting', isAdvisor, validateRequest(scheduleMeetingSchema), asyncWrapper(controller.scheduleMeeting.bind(controller)));
 
 export default router;

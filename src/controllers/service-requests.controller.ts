@@ -27,8 +27,10 @@ export class ServiceRequestsController {
   }
 
   async findByAdvisor(req: AuthenticatedRequest, res: Response) {
-    const advisorId = req.params.advisorId || req.user!.userId;
-    const result = await this.service.findByAdvisor(advisorId, req.query);
+    // const servi
+    console.log(req.user)
+    const userID = req.user!.userId;
+    const result = await this.service.findByAdvisor(userID, req.query);
     ResponseHandler.success(res, result, MESSAGES.SERVICE_REQUESTS.RETRIEVED);
   }
 
@@ -44,7 +46,7 @@ export class ServiceRequestsController {
 
   async respond(req: AuthenticatedRequest, res: Response) {
     const { status, advisorResponse } = req.body;
-    const request = await this.service.respond(req.params.id, status, advisorResponse);
+    const request = await this.service.respond(req.params.id, status, advisorResponse, req.user!.userId);
     ResponseHandler.success(res, request, MESSAGES.SERVICE_REQUESTS.UPDATED);
   }
 
@@ -52,5 +54,13 @@ export class ServiceRequestsController {
     const { meetingId } = req.body;
     const request = await this.service.linkMeeting(req.params.id, meetingId);
     ResponseHandler.success(res, request, MESSAGES.SERVICE_REQUESTS.MEETING_LINKED);
+  }
+
+  async scheduleMeeting(req: AuthenticatedRequest, res: Response) {
+    const { title, meetingDate, meetingLink, description, starts_at, ends_at } = req.body;
+    const result = await this.service.scheduleMeeting(req.params.id, {
+      title, meetingDate, meetingLink, description, starts_at, ends_at,
+    });
+    ResponseHandler.success(res, result, MESSAGES.SERVICE_REQUESTS.MEETING_LINKED, 100, 201);
   }
 }
