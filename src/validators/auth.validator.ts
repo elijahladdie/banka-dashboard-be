@@ -50,22 +50,12 @@ export const resetPasswordSchema = z.object({
   params: z.object({}).optional(),
 });
 
-export const paddleSignUpSchema = z.object({
-  body: z.object({
-    email: z.string().email('Invalid email address').toLowerCase(),
-    fullName: z.string().min(1, 'Full name is required').max(255),
-    source: z.literal('paddle'),
-    subscriptionId: z.string().min(1, 'Subscription ID is required'),
-    customerId: z.string().min(1, 'Customer ID is required'),
-  }),
-  query: z.object({}).optional(),
-  params: z.object({}).optional(),
-});
-
 export const completeRegistrationSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address').toLowerCase(),
     phone: z.string().regex(/^\+?[0-9]{10,}$/, 'Invalid phone number'),
+    firstName: z.string().min(1, 'First name is required').max(255),
+    lastName: z.string().min(1, 'Last name is required').max(255),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')

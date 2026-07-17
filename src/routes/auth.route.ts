@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
-import { asyncWrapper } from '../utils/async-wrapper';
+import { asyncWrapper } from '../middleware/async-wrapper';
 import { jwtAuthGuard } from '../middleware';
 import { validateRequest } from '../middleware/validateRequest';
 import { authRateLimiter } from '../middleware/rateLimiter';
@@ -9,7 +9,6 @@ import {
   signInSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  paddleSignUpSchema,
   completeRegistrationSchema,
 } from '../validators';
 
@@ -19,7 +18,6 @@ const authController = new AuthController();
 
 // Public routes with rate limiting
 router.post('/signup', authRateLimiter, validateRequest(signUpSchema), asyncWrapper(authController.signUp.bind(authController)));
-router.post('/signup/paddle', authRateLimiter, validateRequest(paddleSignUpSchema), asyncWrapper(authController.signUpFromPaddle.bind(authController)));
 router.post('/complete-registration', authRateLimiter, validateRequest(completeRegistrationSchema), asyncWrapper(authController.completeRegistration.bind(authController)));
 router.get('/pending-registration', authRateLimiter, asyncWrapper(authController.checkPendingRegistration.bind(authController)));
 router.post('/signin', authRateLimiter, validateRequest(signInSchema), asyncWrapper(authController.signIn.bind(authController)));
@@ -28,6 +26,6 @@ router.post('/reset-password', authRateLimiter, validateRequest(resetPasswordSch
 
 // Protected routes
 router.post('/verify-email', jwtAuthGuard, asyncWrapper(authController.verifyEmail.bind(authController)));
-router.get('/me', jwtAuthGuard, asyncWrapper(authController.getMe.bind(authController)));
+router.get('/me', jwtAuthGuard, asyncWrapper(authController.getMe.bind(authController)));// returns user with embered subscrition and remove /my under subscriptions
 
 export default router;

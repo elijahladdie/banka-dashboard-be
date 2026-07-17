@@ -11,9 +11,11 @@ import analyticsRoutes from './analytics.route';
 import settingsRoutes from './settings.route';
 import notesRoutes from './notes.route';
 import paddleRoutes from './paddle.route';
+import serviceRequestsRoutes from './service-requests.route';
 import express from 'express';
 import { swaggerSpec } from '../helpers';
 import swaggerUi from 'swagger-ui-express';
+import { RequestHandler } from 'express';
 
 const router = express.Router();
 router.use('/auth', authRoutes);
@@ -27,6 +29,7 @@ router.use('/notifications', notificationsRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/notes', notesRoutes);
+router.use('/service-requests', serviceRequestsRoutes);
 router.use('/paddle', paddleRoutes);
 
 router.use('/docs', [swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -38,7 +41,7 @@ router.use('/docs', [swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     filter: true,
     tryItOutEnabled: true,
   },
-})] as any);
+})] as unknown as RequestHandler[]);
 router.get('/health', (_req, res) => {
   res.status(200).json({
     success: true,

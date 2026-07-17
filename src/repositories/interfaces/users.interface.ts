@@ -1,4 +1,5 @@
 import { Prisma, User } from '@prisma/client';
+import { QueryParams } from '../../types';
 
 export interface IUsersRepository {
   findOne(where: Prisma.UserWhereInput): Promise<User | null>;
@@ -6,7 +7,7 @@ export interface IUsersRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[User[], number]>;
   update(id: string, data: Partial<User>): Promise<User>;
   softDelete(id: string): Promise<User>;

@@ -1,293 +1,97 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
 import { AuthRepository } from '../repositories/implementations/auth.repository';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import {
   SignUpInput,
   SignInInput,
-  PaddleSignUpInput,
-  PaddleSubscriptionUpdateInput,
   CompleteRegistrationInput,
   PendingRegistrationResult,
-  AuthenticatedRequest,
+  AuthResponse,
+  JwtDecodedPayload,
+  UserWithRoles,
 } from '../types';
-import {
-  ConflictError,
-  UnauthorizedError,
-  NotFoundError,
-  ValidationError,
-} from '../helpers';
-import { TOKEN } from '../constants';
-import { BCRYPT_SALT_ROUNDS, JWT_ACCESS_SECRET, PLAN_NAME_MAP, SUBSCRIPTION_RANK } from '../utils/constants';
-import { sendRegistrationEmail, sendSubsPlanChangeEmail } from './email.service';
-import { generateTokens, normalizePaddleSubscription } from '../utils/helper';
+import { ConflictError, UnauthorizedError, NotFoundError, ValidationError } from '../helpers';
+import { hashPassword, verifyPassword, createAuthResponse, sanitizeUser, generateResetToken, extractRoles } from '../helpers/auth.helper';
+import { MESSAGES } from '../constants';
 
 export class AuthService {
   private readonly authRepository: AuthRepository;
   private readonly subscriptionsRepository: SubscriptionsRepository;
+
   constructor() {
     this.authRepository = new AuthRepository();
     this.subscriptionsRepository = new SubscriptionsRepository();
   }
 
-  async signUp(input: SignUpInput): Promise<{ user: any; token: string }> {
-    const existingUser = await this.authRepository.findByEmail(input.email);
-    if (existingUser) {
-      throw new ConflictError('A user with this email already exists.');
-    }
+  async signUp(input: SignUpInput): Promise<AuthResponse> {
+    const existing = await this.authRepository.findByEmail(input.email);
+    if (existing) throw new ConflictError(MESSAGES.AUTH.EMAIL_EXISTS);
 
-    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
-    const passwordHash = await bcrypt.hash(input.password, salt);
-
-    const user = await this.authRepository.createUser({
+    const password = await hashPassword(String(input.password));
+    const user = await this.authRepository.createUserWithRole({
       email: input.email.toLowerCase(),
-      passwordHash,
+      password, 
       firstName: input.firstName,
-      lastName: input.lastName,
-      phoneNumber: input.phoneNumber,
+       lastName: input.lastName,
+      phoneNumber: input.phoneNumber, 
+      roleSlug: 'client',
+      source: input.source || 'signup',
     });
-
-    const token = await generateTokens({ userId: user.id, email: user.email, role: user.role });
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, token: token };
+    return createAuthResponse(user);
   }
 
-  async signIn(input: SignInInput): Promise<{ user: any; token: string }> {
-    const user = await this.authRepository.findByEmail(input.email.toLowerCase());
-    if (!user) {
-      throw new UnauthorizedError('Invalid email or password.');
-    }
+  async signIn(input: SignInInput): Promise<AuthResponse> {
+    const user = await this.authRepository.findByEmailWithRoles(input.email.toLowerCase());
+    if (!user) throw new UnauthorizedError(MESSAGES.AUTH.INVALID_CREDENTIALS);
+    if (user.closedAt) throw new UnauthorizedError(MESSAGES.AUTH.ACCOUNT_DEACTIVATED);
+    if (user.status === 'SUSPENDED') throw new UnauthorizedError(MESSAGES.AUTH.ACCOUNT_SUSPENDED);
+    if (user.status === 'INACTIVE') throw new UnauthorizedError(MESSAGES.AUTH.ACCOUNT_INACTIVE);
+    if (!user.isRegComplete) throw new UnauthorizedError(MESSAGES.AUTH.COMPLETE_REGISTRATION_FIRST);
 
-    if (user.deletedAt) {
-      throw new UnauthorizedError('This account has been deactivated.');
-    }
+    const valid = await verifyPassword(input.password, user.password);
+    if (!valid) throw new UnauthorizedError(MESSAGES.AUTH.INVALID_CREDENTIALS);
 
-    if (user.status === 'SUSPENDED') {
-      throw new UnauthorizedError('This account has been suspended.');
-    }
-
-    if (user.status === 'INACTIVE') {
-      throw new UnauthorizedError('This account is inactive.');
-    }
-
-    if (!user.registrationCompleted) {
-      throw new UnauthorizedError('Please complete your registration first.');
-    }
-
-    const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedError('Invalid email or password.');
-    }
-
-    const updatedUser = await this.authRepository.updateUser(user.id, {
-      lastLoginAt: new Date(),
-    });
-
-    const token = generateTokens({ userId: user.id, email: user.email, role: user.role });
-    const { passwordHash: _, ...userWithoutPassword } = updatedUser;
-    return { user: userWithoutPassword, token };
-  }
-  async signUpFromPaddle(input: PaddleSignUpInput): Promise<{ user: any }> {
-    const existingUser = await this.authRepository.findByEmail(input.email);
-    if (existingUser) {
-      // User already exists — create subscription if missing, or update customerId
-      const existingSub = await this.subscriptionsRepository.findOne({ userId: existingUser.id });
-      if (existingSub) {
-        await this.subscriptionsRepository.update(existingSub.id, {
-          customerId: input.customerId || existingSub.customerId,
-          subscriptionId: input.subscriptionId || existingSub.subscriptionId,
-        });
-      } else {
-        await this.subscriptionsRepository.create({
-          userId: existingUser.id,
-          customerId: input.customerId || '',
-          subscriptionId: input.subscriptionId || '',
-        });
-      }
-      const { passwordHash: _, ...userWithoutPassword } = existingUser;
-      return { user: userWithoutPassword };
-    }
-
-    // Placeholder password — user must complete registration to set a real one
-    const placeholderHash = await bcrypt.hash(uuidv4(), 1);
-
-    const user = await this.authRepository.createUser({
-      email: input.email,
-      passwordHash: placeholderHash,
-      firstName: input.fullName,
-      lastName: '',
-      registrationCompleted: false,
-      source: 'paddle',
-    });
-
-    // Create a subscription record with the Paddle customer ID
-    await this.subscriptionsRepository.create({
-      userId: user.id,
-      customerId: input.customerId || '',
-      subscriptionId: input.subscriptionId || '',
-    });
-    const token = generateTokens({ userId: user.id, email: user.email, role: user.role });
-    // Send welcome / registration email
-    await sendRegistrationEmail({ token, fullName: user.firstName, email: user.email, });
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword };
+    await this.authRepository.updateUser(user.id, { lastLoginAt: new Date() });
+    const { user: safeUser, token } = createAuthResponse({ ...user, userRoles: user.userRoles });
+    return { user: safeUser, token };
   }
 
-  async updateSubscriptionFromPaddle(
-    input: PaddleSubscriptionUpdateInput
-  ): Promise<any | null> {
+  async completeRegistration(input: CompleteRegistrationInput): Promise<AuthResponse> {
+    const user = await this.authRepository.findByEmailWithRoles(input.email);
+    if (!user) throw new NotFoundError(MESSAGES.USERS.NOT_FOUND);
+    if (user.isRegComplete) throw new ValidationError(MESSAGES.AUTH.REGISTRATION_ALREADY_COMPLETED);
 
-    const subscription = await this.subscriptionsRepository.findOne({
-      customerId: input.customerId,
-    });
-
-    if (!subscription) return null;
-
-    const paddleEvent = input.paddleEvent;
-
-    const normalized = normalizePaddleSubscription(paddleEvent);
-
-    const previousPlan = subscription.plan;
-
-    /**
-     * 🧠 CRITICAL FIX:
-     * These fields MUST ALWAYS be stored consistently
-     */
-    await this.subscriptionsRepository.update(subscription.id, {
-      subscriptionId:
-        input.subscriptionId || subscription.subscriptionId,
-
-      plan: normalized.product,
-
-      status: normalized.status,
-
-      startsAt: normalized.startsAt,
-      endsAt: normalized.endsAt,
-      canceledAt: normalized.canceledAt,
-      trialStart: normalized.trialStart,
-      trialEnd: normalized.trialEnd,
-
-      metadata: {
-        currency: normalized.currency,
-        amount: normalized.amount,
-        billingCycle: normalized.billingCycle,
-        collectionMode: normalized.collectionMode,
-        paddleEventType: paddleEvent?.event_type,
-        product: normalized.product,
-      },
-    });
-
-    const user = await this.authRepository.findById(subscription.userId);
-    if (!user) return null;
-    const newPlan = (normalized.product || '').toLowerCase();
-
-    const previousInterval =
-      subscription.billingInterval || 'month';
-
-    const newInterval =
-      normalized.billingCycle || 'month';
-
-    const previousRank =
-      SUBSCRIPTION_RANK[`${previousPlan}:${previousInterval}`];
-
-    const newRank =
-      SUBSCRIPTION_RANK[`${newPlan}:${newInterval}`];
-
-    const subscriptionChanged =
-      previousPlan !== newPlan ||
-      previousInterval !== newInterval;
-
-    if (subscriptionChanged) {
-      const isUpgrade = newRank > previousRank;
-
-      await sendSubsPlanChangeEmail({
-        email: user.email,
-        firstName: user.firstName,
-
-        previousPlan:
-          PLAN_NAME_MAP[previousPlan] || previousPlan,
-
-        newPlan:
-          PLAN_NAME_MAP[newPlan] || newPlan,
-
-        previousInterval,
-        newInterval,
-
-        isUpgrade,
-      });
-    }
-
-
-    return user;
-  }
-  async completeRegistration(input: CompleteRegistrationInput): Promise<{ user: any; token: string }> {
-    const user = await this.authRepository.findByEmail(input.email);
-    if (!user) {
-      throw new NotFoundError('User');
-    }
-
-    if (user.registrationCompleted) {
-      throw new ValidationError('Registration is already completed.');
-    }
-
-    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
-    const passwordHash = await bcrypt.hash(input.password, salt);
-
+    const password = await hashPassword(input.password);
     const updated = await this.authRepository.updateUser(user.id, {
-      passwordHash,
-      phoneNumber: input.phone,
-      registrationCompleted: true,
-      status: 'ACTIVE',
+      password: password, phoneNumber: input.phone,
+      firstName: input.firstName, lastName: input.lastName,
+      isVerified: true, isRegComplete: true, status: 'ACTIVE',
     });
-
-    const token = generateTokens({ userId: updated.id, email: updated.email, role: updated.role });
-
-    const { passwordHash: _, ...userWithoutPassword } = updated;
-    return { user: userWithoutPassword, token };
+    return createAuthResponse({ ...updated, userRoles: user.userRoles });
   }
 
   async checkPendingRegistration(token: string): Promise<PendingRegistrationResult> {
-    const decoded = jwt.verify(token, JWT_ACCESS_SECRET) as unknown as AuthenticatedRequest['user'];
-    if (!decoded || !decoded.email) {
-      throw new ValidationError('Invalid token.');
-    }
+    const jwt = await import('jsonwebtoken');
+    const { JWT_ACCESS_SECRET } = await import('../constants/constants');
+    const decoded = jwt.default.verify(token, JWT_ACCESS_SECRET) as JwtDecodedPayload;
+    if (!decoded?.email) throw new ValidationError(MESSAGES.AUTH.INVALID_TOKEN_SHORT);
+
     const user = await this.authRepository.findByEmail(decoded.email.toLowerCase());
-    if (!user) {
-      return { exists: false };
-    }
-
-    return {
-      exists: true,
-      email: user.email,
-      fullName: `${user.firstName} ${user.lastName}`.trim(),
-      registrationCompleted: user.registrationCompleted,
-    };
+    if (!user) return { exists: false };
+    return { exists: true, email: user.email, fullName: `${user.firstName} ${user.lastName}`.trim(), isRegComplete: user.isRegComplete };
   }
-
 
   async forgotPassword(email: string): Promise<{ resetToken: string }> {
     const user = await this.authRepository.findByEmail(email.toLowerCase());
-    if (!user) {
-      throw new ValidationError('If the email exists, a reset link has been sent.');
-    }
-
-    const resetToken = uuidv4();
-    const resetTokenExpiry = new Date(Date.now() + TOKEN.RESET_TOKEN_EXPIRY);
-
-    await this.authRepository.updateUser(user.id, {});
+    if (!user) throw new ValidationError(MESSAGES.AUTH.FORGOT_PASSWORD);
+    const { resetToken } = generateResetToken();
     return { resetToken };
   }
 
   async resetPassword(resetToken: string, newPassword: string): Promise<void> {
-    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
-    const passwordHash = await bcrypt.hash(newPassword, salt);
+    const password = await hashPassword(newPassword);
   }
 
   async verifyEmail(userId: string): Promise<void> {
-    await this.authRepository.updateUser(userId, {
-      emailVerified: true,
-      status: 'ACTIVE',
-    });
+    await this.authRepository.updateUser(userId, { isVerified: true, status: 'ACTIVE' });
   }
 }

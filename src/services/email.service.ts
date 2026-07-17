@@ -1,6 +1,6 @@
 import nodemailer, { SendMailOptions } from 'nodemailer';
 import { Address } from 'nodemailer/lib/mailer';
-import { NODE_ENV, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, DASHBOARD_URL } from '../utils/constants';
+import { NODE_ENV, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, DASHBOARD_URL } from '../constants/constants';
 import logger from '../utils/logger';
 
 function createTransporter(): nodemailer.Transporter {
@@ -21,7 +21,7 @@ function createTransporter(): nodemailer.Transporter {
   if (NODE_ENV !== 'production') {
     logger.warn('[email] SMTP not configured — emails will be logged to console only.');
     return {
-      sendMail: async (opts: any) => {
+      sendMail: async (opts: SendMailOptions) => {
         logger.info('[email] Would send email:', JSON.stringify(opts, null, 2));
         return { messageId: `log-${Date.now()}` };
       },
@@ -110,9 +110,6 @@ function buildRegistrationEmailHtml(fullName: string, completionUrl: string): st
 </html>`;
 }
 
-/**
- * Send a registration-completion email with a link to set password and finish signup.
- */
 type RegistrationEmailOptions = {
   email: string;
   token: string;

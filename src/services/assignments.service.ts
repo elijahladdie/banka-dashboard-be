@@ -1,131 +1,72 @@
-import { Prisma, SubscriberAssignment } from '@prisma/client';
+import { Prisma, ClientAssignment } from '@prisma/client';
 import { AssignmentsRepository } from '../repositories/implementations/assignments.repository';
 import { AdvisorsRepository } from '../repositories/implementations/advisors.repository';
 import { ConflictError, NotFoundError, ValidationError } from '../helpers';
-import { PaginatedResult, TUserSelect } from '../types';
+import { PaginatedResult, QueryParams, UserRoleInfo } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
-import logger from '../utils/logger';
+import { formatAssignments } from '../helpers/assignments.helper';
+import { buildAssignmentsFilter } from '../helpers/query-builder.helper';
+import { MESSAGES } from '../constants';
 
 export class AssignmentsService {
   private readonly assignmentsRepository: AssignmentsRepository;
   private readonly advisorsRepository: AdvisorsRepository;
   private readonly subsRepository: SubscriptionsRepository;
-    constructor() {
+
+  constructor() {
     this.assignmentsRepository = new AssignmentsRepository();
     this.advisorsRepository = new AdvisorsRepository();
     this.subsRepository = new SubscriptionsRepository();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<SubscriberAssignment>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<ClientAssignment>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-
-    const where: Prisma.SubscriberAssignmentWhereInput = {};
-    if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
-    if (query.advisorId) where.advisorId = query.advisorId;
-    if (query.subscriberId) where.subscriber = { user: { id: query.subscriberId } };
-
-    const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where }) as [any[], number];
-    type FormattedAssignment = Omit<SubscriberAssignment, "subscriber"> & {
-      user: TUserSelect;
-    };
-
-    const formattedAssignments: FormattedAssignment[] = assignments.map(
-      ({ subscriber, ...rest }) => ({
-        ...rest,
-        subscriber: subscriber.user as TUserSelect,
-      })
-    );
-
-    return paginateResult(formattedAssignments, total, pagination);
+    const where = buildAssignmentsFilter(query);
+    const [assignments, total] = await this.assignmentsRepository.findAll({ skip, take, orderBy, where });
+    return paginateResult(formatAssignments(assignments), total, pagination);
   }
 
-  async assignSubscriber(
-    subscriberId: string,
-    advisorId: string,
-    assignedBy: string
-  ): Promise<SubscriberAssignment> {
-    // Verify subscriber exists and has SUBSCRIBER role
-    const subscriber = await this.subsRepository.findOne({ id: subscriberId });
-    logger.info('Subscriber found:', subscriber);
-    if (!subscriber) throw new NotFoundError('Subscriber not found');
-    if (subscriber.user.role !== 'SUBSCRIBER') {
-      throw new ValidationError('User is not a subscriber.');
-    }
+  async assignClient(clientId: string, advisorId: string, assignedBy: string): Promise<ClientAssignment> {
+    const client = await this.subsRepository.findOne({ id: clientId });
+    if (!client) throw new NotFoundError(MESSAGES.ASSIGNMENTS.CLIENT_NOT_FOUND);
+    const hasClientRole = client.user?.userRoles?.some((ur: UserRoleInfo) => ur.role.slug === 'client');
+    if (!hasClientRole) throw new ValidationError(MESSAGES.ASSIGNMENTS.NOT_A_CLIENT);
 
-    // Verify advisor exists
     const advisor = await this.advisorsRepository.findById(advisorId);
-    if (!advisor) throw new NotFoundError('Advisor not found');
+    if (!advisor) throw new NotFoundError(MESSAGES.ADVISORS.ADVISOR_NOT_FOUND);
+    if (!advisor.isAvailable) throw new ConflictError(MESSAGES.ADVISORS.NOT_AVAILABLE);
+    if (advisor.currentClients >= advisor.maxClients) throw new ConflictError(MESSAGES.ADVISORS.MAX_CAPACITY);
 
-    if (!advisor.isAvailable) {
-      throw new ConflictError('Advisor is not available for assignments.');
-    }
+    const existing = await this.assignmentsRepository.findActiveByClient(clientId);
+    if (existing) throw new ConflictError(MESSAGES.ASSIGNMENTS.ALREADY_ASSIGNED);
 
-    if (advisor.currentClients >= advisor.maxClients) {
-      throw new ConflictError('Advisor has reached maximum client capacity.');
-    }
-
-    // Check for existing active assignment
-    const existing = await this.assignmentsRepository.findActiveBySubscriber(subscriberId);
-    if (existing) {
-      throw new ConflictError('Subscriber already has an active advisor assignment.');
-    }
-
-    // Create assignment
-    //     await prisma.subscriberAssignment.create({
-    //   data: 
-    // });
     const assignment = await this.assignmentsRepository.create({
-      assignedAt: new Date(),
-      isActive: true,
-
-      subscriber: {
-        connect: {
-          id: subscriberId,
-        },
-      },
-
-      advisor: {
-        connect: {
-          id: advisorId,
-        },
-      },
-
-      assignedByUser: {
-        connect: {
-          id: assignedBy,
-        },
-      },
-    },);
-
-    // Update advisor client count
-    await this.advisorsRepository.update(advisorId, {
-      currentClients: advisor.currentClients + 1,
+      assignedAt: new Date(), isActive: true,
+      client: { connect: { id: clientId } },
+      advisor: { connect: { id: advisorId } },
+      assignedByUser: { connect: { id: assignedBy } },
     });
 
+    await this.advisorsRepository.update(advisorId, { currentClients: advisor.currentClients + 1 });
     return assignment;
   }
 
-  async endAssignment(id: string, actorId: string): Promise<SubscriberAssignment> {
+  async endAssignment(id: string, _actorId: string): Promise<ClientAssignment> {
     const assignment = await this.assignmentsRepository.findById(id);
-    if (!assignment) throw new NotFoundError('Assignment');
-    if (!assignment.isActive) throw new ValidationError('Assignment is already ended.');
+    if (!assignment) throw new NotFoundError(MESSAGES.ASSIGNMENTS.NOT_FOUND);
+    if (!assignment.isActive) throw new ValidationError(MESSAGES.ASSIGNMENTS.ALREADY_ENDED);
 
     const ended = await this.assignmentsRepository.endAssignment(id);
-
-    // Update advisor client count
     const advisor = await this.advisorsRepository.findById(assignment.advisorId);
     if (advisor) {
-      await this.advisorsRepository.update(assignment.advisorId, {
-        currentClients: Math.max(0, advisor.currentClients - 1),
-      });
+      await this.advisorsRepository.update(assignment.advisorId, { currentClients: Math.max(0, advisor.currentClients - 1) });
     }
-
     return ended;
   }
 
-  async getActiveAssignment(subscriberId: string): Promise<SubscriberAssignment | null> {
-    return this.assignmentsRepository.findActiveBySubscriber(subscriberId);
+  async getActiveAssignment(clientId: string): Promise<ClientAssignment | null> {
+    return this.assignmentsRepository.findActiveByClient(clientId);
   }
 }

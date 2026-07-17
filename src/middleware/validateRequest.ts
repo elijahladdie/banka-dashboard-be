@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 import { ValidationError } from '../helpers';
+import { ACTIVATION_WEBHOOK_SECRET, SUB_CREATION_WEBHOOK_SECRET } from '../constants/constants';
+import { CustomerCreatedEvent } from '@paddle/paddle-node-sdk';
+import { PaddleActivation, PaddleCreation } from '../helpers/paddle';
 
 export function validateRequest(schema: ZodSchema) {
   return (req: Request, _res: Response, next: NextFunction): void => {
@@ -23,4 +26,22 @@ export function validateRequest(schema: ZodSchema) {
       next(error);
     }
   };
+}
+
+
+export const verifyCreationSignature = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+
+  const rawBody = (req as { rawBody?: string }).rawBody || '';
+  const signature = req.headers['paddle-signature'] as string || '';
+  const event = await PaddleCreation.webhooks.unmarshal(rawBody, SUB_CREATION_WEBHOOK_SECRET, signature) as CustomerCreatedEvent;
+  req.body = event;
+  next();
+}
+
+export const verifyActivationSignature = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const rawBody = (req as { rawBody?: string }).rawBody || '';
+  const signature = req.headers['paddle-signature'] as string || '';
+  const event = await PaddleActivation.webhooks.unmarshal(rawBody, ACTIVATION_WEBHOOK_SECRET, signature);
+  req.body = event;
+  next();
 }

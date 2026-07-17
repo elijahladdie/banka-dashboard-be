@@ -1,7 +1,7 @@
 model Meeting {
   id           String        @id @default(uuid()) @db.Uuid
   advisorId    String        @db.Uuid
-  subscriberId String        @db.Uuid
+  clientId String        @db.Uuid
   title        String        @db.VarChar(255)
   description  String?
   meetingDate  DateTime      @db.Timestamptz(6)
@@ -12,7 +12,6 @@ model Meeting {
   createdAt    DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
   advisor      Advisor       @relation("AdvisorMeetings", fields: [advisorId], references: [id], onDelete: Cascade)
-  subscriber   User          @relation("SubscriberMeetings", fields: [subscriberId], references: [id], onDelete: Cascade)
-
-  @@map("meetings")
+  client   User          @relation("ClientMeetings", fields: [clientId], references: [id], onDelete: Cascade)
+  serviceRequest ServiceRequest? @relation("ServiceRequestMeeting")
 }

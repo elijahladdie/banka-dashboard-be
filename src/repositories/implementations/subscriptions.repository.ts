@@ -1,7 +1,8 @@
 import { Prisma, Subscription } from '@prisma/client';
 import prisma from '../../utils/prisma';
-import { ISubscriptionsRepository, SubscriptionWithUser } from '../interfaces/subscriptions.interface';
+import { ISubscriptionsRepository } from '../interfaces/subscriptions.interface';
 import { INCLUDE_USER, INCLUDE_USER_ADVISOR } from '../../constants';
+import { QueryParams, SubscriptionWithUser } from '../../types';
 
 
 export class SubscriptionsRepository implements ISubscriptionsRepository {
@@ -16,44 +17,44 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     skip?: number;
     take?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
-    where?: Record<string, any>;
+    where?: QueryParams;
   }): Promise<[SubscriptionWithUser[], number]> {
     const [subscriptions, total] = await Promise.all([
       prisma.subscription.findMany({ ...params, include: INCLUDE_USER_ADVISOR }),
       prisma.subscription.count({ where: params.where }),
     ]);
-    return [subscriptions as any[], total];
+    return [subscriptions as unknown as SubscriptionWithUser[], total];
   }
 
   async findAllWithUsers(params?: {
-    where?: Record<string, any>;
+    where?: QueryParams;
     orderBy?: Record<string, 'asc' | 'desc'>;
   }): Promise<SubscriptionWithUser[]> {
     return await prisma.subscription.findMany({
       ...params,
       include: INCLUDE_USER,
-    }) as SubscriptionWithUser[]
+    }) as unknown as SubscriptionWithUser[]
   }
 
   async findOneWithUser(id: string): Promise<SubscriptionWithUser | null> {
     return await prisma.subscription.findUnique({
       where: { id },
       include: INCLUDE_USER,
-    }) as SubscriptionWithUser;
+    }) as unknown as SubscriptionWithUser;
   }
 
   async findByAdvisor(advisorId: string): Promise<SubscriptionWithUser[]> {
-    const assignments = await prisma.subscriberAssignment.findMany({
+    const assignments = await prisma.clientAssignment.findMany({
       where: { advisorId, isActive: true },
       include: {
-        subscriber: {
+        client: {
           include: { user: true },
         },
       },
     });
     const resp =
       assignments
-        .map((a) => a.subscriber as SubscriptionWithUser | null)
+        .map((a) => a.client as unknown as SubscriptionWithUser | null)
         .filter(Boolean) as SubscriptionWithUser[];
 
     return resp;
@@ -63,14 +64,14 @@ export class SubscriptionsRepository implements ISubscriptionsRepository {
     return await prisma.subscription.findMany({
       where: { status: 'ACTIVE' },
       include: INCLUDE_USER,
-    }) as SubscriptionWithUser[];
+    }) as unknown as SubscriptionWithUser[];
   }
 
   async create(data: Partial<Subscription>): Promise<Subscription> {
-    return await prisma.subscription.create({ data: data as any });
+    return await prisma.subscription.create({ data: data as Prisma.SubscriptionCreateInput });
   }
 
-  async update(id: string, data: Partial<Subscription>): Promise<Subscription> {
-    return await prisma.subscription.update({ where: { id }, data: data as any });
+  async update(id: string, data: Prisma.SubscriptionUpdateInput): Promise<Subscription> {
+    return await prisma.subscription.update({ where: { id }, data });
   }
 }

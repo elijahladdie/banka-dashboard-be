@@ -1,8 +1,8 @@
-import bcrypt from 'bcryptjs';
 import { User } from '@prisma/client';
 import { SettingsRepository } from '../repositories/implementations/settings.repository';
 import { NotFoundError, ValidationError } from '../helpers';
-import { BCRYPT_SALT_ROUNDS } from '../utils/constants';
+import { hashPassword, verifyPassword } from '../helpers/auth.helper';
+import { MESSAGES } from '../constants';
 
 export class SettingsService {
   private readonly settingsRepository: SettingsRepository;
@@ -12,34 +12,20 @@ export class SettingsService {
 
   async getProfile(userId: string): Promise<User> {
     const user = await this.settingsRepository.findById(userId);
-    if (!user) throw new NotFoundError('User');
+    if (!user) throw new NotFoundError(MESSAGES.SETTINGS.USER_NOT_FOUND);
     return user;
   }
 
-  async updateProfile(userId: string, data: Partial<User>, actorId: string): Promise<User> {
-    const user = await this.getProfile(userId);
-
-    const updated = await this.settingsRepository.updateProfile(userId, data);
-
-    return updated;
+  async updateProfile(userId: string, data: Partial<User>, _actorId: string): Promise<User> {
+    await this.getProfile(userId);
+    return this.settingsRepository.updateProfile(userId, data);
   }
 
-  async changePassword(
-    userId: string,
-    currentPassword: string,
-    newPassword: string,
-    actorId: string
-  ): Promise<void> {
+  async changePassword(userId: string, currentPassword: string, newPassword: string, _actorId: string): Promise<void> {
     const user = await this.getProfile(userId);
-
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new ValidationError('Current password is incorrect.');
-    }
-
-    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
-    const passwordHash = await bcrypt.hash(newPassword, salt);
-
-    await this.settingsRepository.updatePassword(userId, passwordHash);
+    const valid = await verifyPassword(currentPassword, user.password);
+    if (!valid) throw new ValidationError(MESSAGES.SETTINGS.CURRENT_PASSWORD_INCORRECT);
+    const password = await hashPassword(newPassword);
+    await this.settingsRepository.updatePassword(userId, password);
   }
 }

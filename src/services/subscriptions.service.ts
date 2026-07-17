@@ -1,31 +1,32 @@
-import { Subscription } from '@prisma/client';
+import { Prisma, Subscription } from '@prisma/client';
 import { SubscriptionsRepository } from '../repositories/implementations/subscriptions.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { buildSubscriptionsFilter } from '../helpers/query-builder.helper';
+import { PaddleService } from './paddle.service';
+import { MESSAGES } from '../constants';
 
 export class SubscriptionsService {
   private readonly subscriptionsRepository: SubscriptionsRepository;
+  private readonly paddleService: PaddleService;
+
   constructor() {
     this.subscriptionsRepository = new SubscriptionsRepository();
+    this.paddleService = new PaddleService();
   }
 
-  async findAll(query: Record<string, any>): Promise<PaginatedResult<Subscription>> {
+  async findAll(query: QueryParams): Promise<PaginatedResult<Subscription>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-
-    const where: Record<string, any> = {};
-    if (query.plan) where.plan = query.plan;
-    if (query.status) where.status = query.status;
-
+    const where = buildSubscriptionsFilter(query);
     const [subscriptions, total] = await this.subscriptionsRepository.findAll({ skip, take, orderBy, where });
-
     return paginateResult(subscriptions, total, pagination);
   }
 
   async findById(id: string): Promise<Subscription> {
     const subscription = await this.subscriptionsRepository.findOne({ id });
-    if (!subscription) throw new NotFoundError('Subscription');
+    if (!subscription) throw new NotFoundError(MESSAGES.SUBSCRIPTIONS.NOT_FOUND_SINGLE);
     return subscription;
   }
 
@@ -33,25 +34,26 @@ export class SubscriptionsService {
     return this.subscriptionsRepository.findOne({ userId });
   }
 
-  async create(data: Partial<Subscription>, actorId: string): Promise<Subscription> {
-    const subscription = await this.subscriptionsRepository.create(data);
-    return subscription;
+  async create(data: Partial<Subscription>, _actorId: string): Promise<Subscription> {
+    return this.subscriptionsRepository.create(data);
   }
 
-  async update(id: string, data: Partial<Subscription>, actorId: string): Promise<Subscription> {
+  async update(id: string, data: Prisma.SubscriptionUpdateInput & { priceId?: string }): Promise<Subscription> {
+    const sub = await this.findById(id);
+    const { priceId, ...rest } = data;
+    if (priceId && sub.subscriptionId) {
+      await this.paddleService.updateSubscription(String(sub.subscriptionId), priceId);
+    }
+    if (Object.keys(rest).length > 0) {
+      return this.subscriptionsRepository.update(id, rest);
+    }
+    return this.findById(id);
+  }
+
+  async cancelSubscription(id: string, _actorId: string): Promise<Subscription> {
     await this.findById(id);
-    const updated = await this.subscriptionsRepository.update(id, data);
-    return updated;
-  }
-
-  async cancelSubscription(id: string, actorId: string): Promise<Subscription> {
-    const subscription = await this.findById(id);
-
-    const updated = await this.subscriptionsRepository.update(id, {
-      status: 'CANCELED',
-      canceledAt: new Date(),
-      cancelAtPeriodEnd: true,
+    return this.subscriptionsRepository.update(id, {
+      status: 'CANCELED', canceledAt: new Date(), cancelAtPeriodEnd: true,
     });
-    return updated;
   }
 }

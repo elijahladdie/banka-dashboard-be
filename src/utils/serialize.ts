@@ -1,9 +1,9 @@
 import { Prisma } from '@prisma/client';
 
-export function serializeResult(obj: any): any {
+export function serializeResult<T>(obj: T): unknown {
   const visited = new WeakSet<object>();
 
-  const serialize = (value: any): any => {
+  const serialize = (value: unknown): unknown => {
     if (Array.isArray(value)) {
       return value.map(serialize);
     }
@@ -22,9 +22,9 @@ export function serializeResult(obj: any): any {
       }
 
       visited.add(value);
-      const result: Record<string, any> = {};
-      for (const key of Object.keys(value)) {
-        const nested = value[key];
+      const result: Record<string, unknown> = {};
+        for (const key of Object.keys(value as Record<string, unknown>)) {
+          const nested = (value as Record<string, unknown>)[key];
         if (typeof nested === 'bigint') {
           result[key] = nested.toString();
         } else {

@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { SubscriptionsService } from '../services/subscriptions.service';
-import { AuthenticatedRequest } from '../types';
+import { AuthenticatedRequest, QueryParams } from '../types';
 import { ResponseHandler } from '../utils/response-handler';
+import { MESSAGES } from '../constants';
 
 export class SubscriptionsController {
   private readonly subscriptionsService: SubscriptionsService;
@@ -10,47 +11,37 @@ export class SubscriptionsController {
   }
 
   async findAll(req: AuthenticatedRequest, res: Response) {
-    if (req.user?.role === 'FINANCIAL_ADVISOR') {
-      req.query.advisorId = req.user.userId;
-    }
-    const result = await this.subscriptionsService.findAll({ ...req.query, user: req?.user });
-    ResponseHandler.success(res, result, 'Subscriptions retrieved successfully.');
+    const query: QueryParams = { ...req.query, user: req.user };
+    if (req.user?.roles?.includes('advisor')) query.advisorId = req.user.userId;
+    const result = await this.subscriptionsService.findAll(query);
+    ResponseHandler.success(res, result, MESSAGES.SUBSCRIPTIONS.RETRIEVED);
   }
 
   async findById(req: Request, res: Response) {
     const subscription = await this.subscriptionsService.findById(req.params.id);
-    ResponseHandler.success(res, subscription, 'Subscription retrieved successfully.');
+    ResponseHandler.success(res, subscription, MESSAGES.SUBSCRIPTIONS.RETRIEVED_SINGLE);
   }
 
   async findByUserId(req: AuthenticatedRequest, res: Response) {
     const userId = req.params.userId || req.user!.userId;
     const subscription = await this.subscriptionsService.findByUserId(userId);
-    const message = subscription ? 'Subscription retrieved successfully.' : 'No subscription found.';
-    ResponseHandler.success(res, subscription, message);
+    ResponseHandler.success(res, subscription, subscription ? MESSAGES.SUBSCRIPTIONS.RETRIEVED_SINGLE : MESSAGES.SUBSCRIPTIONS.NOT_FOUND);
   }
 
   async create(req: AuthenticatedRequest, res: Response) {
     const subscription = await this.subscriptionsService.create(
-      { ...req.body, userId: req.user!.userId },
-      req.user!.userId
+      { ...req.body, userId: req.user!.userId }, req.user!.userId
     );
-    ResponseHandler.success(res, subscription, 'Subscription created successfully.', 100, 201);
+    ResponseHandler.success(res, subscription, MESSAGES.SUBSCRIPTIONS.CREATED, 100, 201);
   }
 
   async update(req: AuthenticatedRequest, res: Response) {
-    const subscription = await this.subscriptionsService.update(
-      req.params.id,
-      req.body,
-      req.user!.userId
-    );
-    ResponseHandler.success(res, subscription, 'Subscription updated successfully.');
+    const subscription = await this.subscriptionsService.update(req.params.id, req.body);
+    ResponseHandler.success(res, subscription, MESSAGES.SUBSCRIPTIONS.UPDATED);
   }
 
   async cancel(req: AuthenticatedRequest, res: Response) {
-    const subscription = await this.subscriptionsService.cancelSubscription(
-      req.params.id,
-      req.user!.userId
-    );
-    ResponseHandler.success(res, subscription, 'Subscription canceled successfully.');
+    const subscription = await this.subscriptionsService.cancelSubscription(req.params.id, req.user!.userId);
+    ResponseHandler.success(res, subscription, MESSAGES.SUBSCRIPTIONS.CANCELED);
   }
 }

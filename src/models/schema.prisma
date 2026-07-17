@@ -7,13 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  PLATFORM_ADMIN
-  FINANCE_OFFICER
-  FINANCIAL_ADVISOR
-  SUBSCRIBER
-}
-
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -67,4 +60,12 @@ enum NotificationType {
   SUCCESS
   ERROR
   REMINDER
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
 }

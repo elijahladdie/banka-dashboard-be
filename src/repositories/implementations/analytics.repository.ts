@@ -5,11 +5,11 @@ import { IAnalyticsRepository } from '../interfaces/analytics.interface';
 export class AnalyticsRepository implements IAnalyticsRepository {
   async getOverview(): Promise<AnalyticsOverview> {
     const [
-      subscriberTrend,
+      clientTrend,
       subscriptionTrend,
       goalTrend,
     ] = await Promise.all([
-      this.getSubscriberTrend(),
+      this.getClientTrend(),
       this.getSubscriptionTrend(),
       this.getGoalTrend(),
     ]);
@@ -18,37 +18,49 @@ export class AnalyticsRepository implements IAnalyticsRepository {
     return prisma.$transaction(async (tx) => {
       const totalUsers = await tx.user.count({
         where: {
-          deletedAt: null,
+          closedAt: null,
         },
       });
 
-      const totalSubscribers = await tx.user.count({
+      const totalClients = await tx.user.count({
         where: {
-          role: 'SUBSCRIBER',
-          deletedAt: null,
+          closedAt: null,
+          userRoles: {
+            some: {
+              role: { slug: 'client' },
+            },
+          },
         },
       });
 
       const totalAdmins = await tx.user.count({
         where: {
-          role: 'PLATFORM_ADMIN',
-          deletedAt: null,
+          closedAt: null,
+          userRoles: {
+            some: {
+              role: { slug: 'admin' },
+            },
+          },
         },
       });
 
       const totalAdvisors = await tx.advisor.count({
         where: {
-          deletedAt: null,
+          closedAt: null,
         },
       });
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const recentSubscribers = await tx.user.count({
+      const recentClients = await tx.user.count({
         where: {
-          role: 'SUBSCRIBER',
-          deletedAt: null,
+          closedAt: null,
+          userRoles: {
+            some: {
+              role: { slug: 'client' },
+            },
+          },
           createdAt: {
             gte: thirtyDaysAgo,
           },
@@ -91,34 +103,34 @@ export class AnalyticsRepository implements IAnalyticsRepository {
 
       const goalTotal = await tx.goal.count({
         where: {
-          deletedAt: null,
+          closedAt: null,
         },
       });
 
       const goalCompleted = await tx.goal.count({
         where: {
           status: 'COMPLETED',
-          deletedAt: null,
+          closedAt: null,
         },
       });
 
       const goalActive = await tx.goal.count({
         where: {
           status: 'IN_PROGRESS',
-          deletedAt: null,
+          closedAt: null,
         },
       });
 
       const goalCancelled = await tx.goal.count({
         where: {
           status: 'CANCELED',
-          deletedAt: null,
+          closedAt: null,
         },
       });
 
       const advisors = await tx.advisor.findMany({
         where: {
-          deletedAt: null,
+          closedAt: null,
         },
         select: {
           maxClients: true,
@@ -142,10 +154,10 @@ export class AnalyticsRepository implements IAnalyticsRepository {
       return {
         users: {
           total: totalUsers,
-          subscribers: totalSubscribers,
+          clients: totalClients,
           advisors: totalAdvisors,
           admins: totalAdmins,
-          newSubscribersLast30Days: recentSubscribers,
+          newClientsLast30Days: recentClients,
         },
 
         subscriptions: {
@@ -199,7 +211,7 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         },
 
         trends: {
-          subscribers: subscriberTrend,
+          clients: clientTrend,
           subscriptions: subscriptionTrend,
           goals: goalTrend,
         },
@@ -208,7 +220,7 @@ export class AnalyticsRepository implements IAnalyticsRepository {
 
   }
 
-  private async getSubscriberTrend(months = 12) {
+  private async getClientTrend(months = 12) {
     const result: { month: string; count: number }[] = [];
 
     for (let i = months - 1; i >= 0; i--) {
@@ -229,7 +241,11 @@ export class AnalyticsRepository implements IAnalyticsRepository {
 
       const count = await prisma.user.count({
         where: {
-          role: 'SUBSCRIBER',
+          userRoles: {
+            some: {
+              role: { slug: 'client' },
+            },
+          },
           createdAt: {
             gte: start,
             lt: end,
@@ -310,7 +326,7 @@ export class AnalyticsRepository implements IAnalyticsRepository {
             gte: start,
             lt: end,
           },
-          deletedAt: null,
+          closedAt: null,
         },
       });
 

@@ -5,7 +5,7 @@ import { ISettingsRepository } from '../interfaces/settings.interface';
 export class SettingsRepository implements ISettingsRepository {
   async findById(id: string): Promise<User | null> {
     return prisma.user.findFirst({
-      where: { id, deletedAt: null },
+      where: { id, closedAt: null },
     });
   }
 
@@ -16,10 +16,10 @@ export class SettingsRepository implements ISettingsRepository {
     });
   }
 
-  async updatePassword(id: string, passwordHash: string): Promise<User> {
+  async updatePassword(id: string, password: string): Promise<User> {
     return prisma.user.update({
       where: { id },
-      data: { passwordHash },
+      data: { password: password },
     });
   }
 }

@@ -1,26 +1,26 @@
 model User {
   id                    String                 @id @default(uuid()) @db.Uuid
   email                 String                 @unique @db.VarChar(255)
-  passwordHash          String                 @db.VarChar(255)
+  password          String                 @db.VarChar(255)
   firstName             String                 @db.VarChar(255)
   lastName              String                 @db.VarChar(255)
   phoneNumber           String?                @db.VarChar(50)
-  role                  UserRole               @default(SUBSCRIBER)
   status                UserStatus             @default(PENDING)
-  emailVerified         Boolean                @default(false)
+  isVerified         Boolean                @default(false)
   lastLoginAt           DateTime?              @db.Timestamptz(6)
   createdAt             DateTime               @default(now()) @db.Timestamptz(6)
   updatedAt             DateTime               @updatedAt @db.Timestamptz(6)
-  deletedAt             DateTime?              @db.Timestamptz(6)
-  registrationCompleted Boolean                @default(true)
+  closedAt             DateTime?              @db.Timestamptz(6)
+  isRegComplete Boolean                @default(true)
   source                String?                @db.VarChar(50)
+
   advisor               Advisor?
   advisoryNotes         AdvisoryNote[]
+  userRoles    UserRole[]
   goals                 Goal[]
-  meetingsAsSubscriber  Meeting[]              @relation("SubscriberMeetings")
+  meetingsAsClient  Meeting[]              @relation("ClientMeetings")
+  serviceRequests   ServiceRequest[]       @relation("ClientRequests")
   notifications         Notification[]
-  assignmentsCreated    SubscriberAssignment[] @relation("AssignedBy")
+  assignmentsCreated    ClientAssignment[] @relation("AssignedBy")
   subscription          Subscription?
-
-  @@map("users")
 }

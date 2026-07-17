@@ -1,8 +1,10 @@
 import { Notification } from '@prisma/client';
 import { NotificationsRepository } from '../repositories/implementations/notifications.repository';
 import { NotFoundError } from '../helpers';
-import { PaginatedResult } from '../types';
+import { PaginatedResult, QueryParams } from '../types';
 import { parsePaginationParams, paginateResult, getPrismaPagination } from '../utils/pagination';
+import { buildNotificationsFilter } from '../helpers/query-builder.helper';
+import { MESSAGES } from '../constants';
 
 export class NotificationsService {
   private readonly notificationsRepository: NotificationsRepository;
@@ -10,23 +12,17 @@ export class NotificationsService {
     this.notificationsRepository = new NotificationsRepository();
   }
 
-  async findByUser(userId: string, query: Record<string, any>): Promise<PaginatedResult<Notification>> {
+  async findByUser(userId: string, query: QueryParams): Promise<PaginatedResult<Notification>> {
     const pagination = parsePaginationParams(query);
     const { skip, take, orderBy } = getPrismaPagination(pagination);
-
-    const where: Record<string, any> = {};
-    if (query.unreadOnly === 'true') where.readAt = null;
-    if (query.type) where.type = query.type;
-    where.userId = userId;
-
+    const where = { ...buildNotificationsFilter(query), userId };
     const [notifications, total] = await this.notificationsRepository.findAll({ skip, take, orderBy, where });
-
     return paginateResult(notifications, total, pagination);
   }
 
   async findById(id: string): Promise<Notification> {
     const notification = await this.notificationsRepository.findById(id);
-    if (!notification) throw new NotFoundError('Notification');
+    if (!notification) throw new NotFoundError(MESSAGES.NOTIFICATIONS.NOT_FOUND);
     return notification;
   }
 
@@ -44,8 +40,7 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    return this.notificationsRepository.findAll({
-      where: { userId, readAt: null }
-    }).then(([notifications, _]) => notifications.length);
+    const [notifications] = await this.notificationsRepository.findAll({ where: { userId, readAt: null } });
+    return notifications.length;
   }
 }
