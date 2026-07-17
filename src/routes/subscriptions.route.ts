@@ -11,10 +11,12 @@ const subscriptionsController = new SubscriptionsController();
 router.use(jwtAuthGuard);
 
 router.get('/', isAdminOrAdvisor, asyncWrapper(subscriptionsController.findAll.bind(subscriptionsController)));
-router.get('/my', asyncWrapper(subscriptionsController.findByUserId.bind(subscriptionsController)));
+router.get('/access-info', asyncWrapper(subscriptionsController.getAccessInfo.bind(subscriptionsController)));
+router.get('/me', asyncWrapper(subscriptionsController.findByUserId.bind(subscriptionsController)));
 router.get('/:id', asyncWrapper(subscriptionsController.findById.bind(subscriptionsController)));
 router.post('/', asyncWrapper(subscriptionsController.create.bind(subscriptionsController)));
 router.put('/:id', validateRequest(updateSubscriptionSchema), asyncWrapper(subscriptionsController.update.bind(subscriptionsController)));
 router.post('/:id/cancel', asyncWrapper(subscriptionsController.cancel.bind(subscriptionsController)));
+router.post('/:id/reactivate', asyncWrapper(subscriptionsController.reactivate.bind(subscriptionsController)));
 
 export default router;

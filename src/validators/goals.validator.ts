@@ -10,6 +10,9 @@ export const createGoalSchema = z.object({
 });
 
 export const updateGoalSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
   body: z.object({
     title: z.string().min(1).optional(),
     description: z.string().optional(),

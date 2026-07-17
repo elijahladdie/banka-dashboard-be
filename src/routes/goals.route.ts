@@ -11,7 +11,7 @@ const goalsController = new GoalsController();
 router.use(jwtAuthGuard);
 
 router.get('/', isAdminOrAdvisor, asyncWrapper(goalsController.findAll.bind(goalsController)));
-router.get('/my', asyncWrapper(goalsController.findByClient.bind(goalsController)));
+router.get('/me', asyncWrapper(goalsController.findByClient.bind(goalsController)));
 router.get('/:id', asyncWrapper(goalsController.findById.bind(goalsController)));
 router.get('/client/:clientId', asyncWrapper(goalsController.findByClient.bind(goalsController)));
 router.post('/', isClientOrAdvisor, validateRequest(createGoalSchema), asyncWrapper(goalsController.create.bind(goalsController)));

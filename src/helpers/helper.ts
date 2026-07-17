@@ -3,6 +3,7 @@ import { JWT_ACCESS_SECRET, PLAN_NAME_MAP, PLAN_FEATURES } from '../constants/co
 import { SubscriptionStatus } from '@prisma/client';
 import { Price, Product } from '@paddle/paddle-node-sdk';
 
+
 export const generateTokens = (
     payload: Record<string, string | string[]>
 ): string => jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '1d' });
@@ -30,14 +31,24 @@ export const formatSubscription = (event: Record<string, any>) => {
         billingPeriod?.endsAt ??
         data?.nextBilledAt ??
         null;
+    const status = mapEventStatus(
+        data?.status ?? event?.eventType
+    );
+    const trialDates = lineItem?.trialDates ?? lineItem?.trial_dates;
 
+    const trialStart =
+        trialDates?.startsAt ??
+        trialDates?.starts_at ??
+        null;
+
+    const trialEnd =
+        trialDates?.endsAt ??
+        trialDates?.ends_at ??
+        null;
     const canceledAt =
         data?.canceledAt ??
         null;
 
-    const status = mapEventStatus(
-        data?.status ?? event?.eventType
-    );
     return {
         product: product?.toUpperCase(),
         currency: data?.currencyCode ?? 'USD',
@@ -46,8 +57,8 @@ export const formatSubscription = (event: Record<string, any>) => {
         startsAt: startsAt ? new Date(startsAt) : null,
         endsAt: endsAt ? new Date(endsAt) : null,
         canceledAt: canceledAt ? new Date(canceledAt) : null,
-        trialStart: null,
-        trialEnd: null,
+        trialStart: trialStart ? new Date(trialStart) : null,
+        trialEnd: trialEnd ? new Date(trialEnd) : null,
         billingCycle: lineItem?.price?.billingCycle ?? null,
         collectionMode: data?.collectionMode ?? null,
     };
@@ -84,7 +95,6 @@ function mapEventStatus(status?: string): SubscriptionStatus {
             return "ACTIVE";
     }
 }
-
 const getPlanFeatures = (planKey?: string) => {
     const starterPlan = PLAN_FEATURES.find(plan => plan.name.toLowerCase() === 'starter');
     const proPlan = PLAN_FEATURES.find(plan => plan.name.toLowerCase() === 'pro');

@@ -95,7 +95,7 @@ docker-compose up -d
 
 ### Subscriptions
 - `GET /api/subscriptions` - List subscriptions
-- `GET /api/subscriptions/my` - My subscription
+- `GET /api/subscriptionsme` - My subscription
 - `GET /api/subscriptions/:id` - Get subscription
 - `POST /api/subscriptions` - Create subscription
 - `PUT /api/subscriptions/:id` - Update subscription
@@ -115,7 +115,7 @@ docker-compose up -d
 
 ### Goals
 - `GET /api/goals` - List goals
-- `GET /api/goals/my` - My goals
+- `GET /api/goalsme` - My goals
 - `POST /api/goals` - Create goal
 - `PUT /api/goals/:id` - Update goal
 - `PATCH /api/goals/:id/progress` - Update progress

@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../types';
 import { ForbiddenError } from '../helpers';
-import { MESSAGES } from '../constants';
+import { MESSAGES, ROLES } from '../constants';
 
 export function rolesGuard(...allowedRoles: string[]) {
   return (req: AuthenticatedRequest, _res: Response, next: NextFunction): void => {
@@ -17,9 +17,6 @@ export function rolesGuard(...allowedRoles: string[]) {
     next();
   };
 }
-
-// ── Named role middlewares ────────────────────
-import { ROLES } from '../constants';
 
 export const isAdmin = rolesGuard(ROLES.ADMIN);
 export const isAdvisor = rolesGuard(ROLES.ADVISOR);

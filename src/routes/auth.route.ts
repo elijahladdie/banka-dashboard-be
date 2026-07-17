@@ -26,6 +26,6 @@ router.post('/reset-password', authRateLimiter, validateRequest(resetPasswordSch
 
 // Protected routes
 router.post('/verify-email', jwtAuthGuard, asyncWrapper(authController.verifyEmail.bind(authController)));
-router.get('/me', jwtAuthGuard, asyncWrapper(authController.getMe.bind(authController)));// returns user with embered subscrition and remove /my under subscriptions
+router.get('/me', jwtAuthGuard, asyncWrapper(authController.getMe.bind(authController)));// returns user with embered subscrition and remove me under subscriptions
 
 export default router;

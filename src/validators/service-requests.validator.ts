@@ -9,6 +9,9 @@ export const createServiceRequestSchema = z.object({
 });
 
 export const updateServiceRequestSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
   body: z.object({
     serviceType: z.string().optional(),
     description: z.string().optional(),
@@ -16,14 +19,34 @@ export const updateServiceRequestSchema = z.object({
 });
 
 export const respondServiceRequestSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
   body: z.object({
-    status: z.enum(['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED']),
+    status: z.enum(['PENDING', 'ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED']),
     advisorResponse: z.string().optional(),
   }),
 });
 
 export const linkMeetingSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
   body: z.object({
     meetingId: z.string().uuid('Invalid meeting ID'),
+  }),
+});
+
+export const scheduleMeetingSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+  body: z.object({
+    title: z.string().min(1, 'Title is required'),
+    meetingDate: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid date'),
+    meetingLink: z.string().optional(),
+    description: z.string().optional(),
+    starts_at: z.string().optional(),
+    ends_at: z.string().optional(),
   }),
 });
