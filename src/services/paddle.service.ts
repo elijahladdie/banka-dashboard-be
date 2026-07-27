@@ -26,7 +26,7 @@ export class PaddleService {
     if (!subscription) return null;
 
     const { subscription: normalized, previousPlan, previousInterval, newPlan, newInterval } = buildSubscriptionUpdateData(event, subscription);
-
+console.log("==========================> UPDATE-ACTIVATON", subscription)
     await this.subscriptionsRepository.update(subscription.id, {
       subscriptionId, plan: newPlan, status: normalized.status,
       startsAt: normalized.startsAt, endsAt: normalized.endsAt,
@@ -125,7 +125,40 @@ export class PaddleService {
   private async syncActivatedSubscription({ customerId, subscriptionId, event }: { customerId: string; subscriptionId: string; event: Record<string, any> }): Promise<void> {
     try {
       const sub = await this.subscriptionsRepository.findOne({ customerId });
-      if (!sub) return;
+
+      if (!sub) {
+        const customer = await this.findCustomer(customerId);
+        if (!customer || !customer.email) {
+          logger.warn(`[paddle-webhook] Cannot create subscription: no customer found for customerId: ${customerId}`);
+          return;
+        }
+
+        const { user } = await this.signUp({
+          email: customer.email,
+          firstName: customer.name || customer.email.split('@')[0],
+          customerId,
+          subscriptionId: '',
+          source: 'paddle',
+        });
+
+        const normalized = formatSubscription(event);
+        await this.subscriptionsRepository.create({
+          userId: user.id,
+          customerId,
+          subscriptionId,
+          plan: normalized.product,
+          status: normalized.status,
+          startsAt: normalized.startsAt,
+          endsAt: normalized.endsAt,
+          trialEnd: normalized.trialEnd,
+          trialStart: normalized.trialStart,
+          billingInterval: normalized.billingCycle?.interval || 'month',
+        });
+
+        logger.info(`[paddle-webhook] Subscription created for new customer: ${customerId}`);
+        return;
+      }
+
       const normalized = formatSubscription(event);
       await this.subscriptionsRepository.update(sub.id, {
         subscriptionId, plan: normalized.product, status: normalized.status,
@@ -160,12 +193,6 @@ export class PaddleService {
   private async signUp(input: SignUpInput): Promise<{ user: any }> {
     const existingUser = await this.authRepository.findByEmail(input.email);
     if (existingUser) {
-      const existingSub = await this.subscriptionsRepository.findOne({ userId: existingUser.id });
-      if (existingSub) {
-        await this.subscriptionsRepository.update(existingSub.id, { customerId: input.customerId || existingSub.customerId, subscriptionId: input.subscriptionId || existingSub.subscriptionId });
-      } else {
-        await this.subscriptionsRepository.create({ userId: existingUser.id, customerId: input.customerId || '', subscriptionId: input.subscriptionId || '' });
-      }
       const { password: _, ...userWithoutPassword } = existingUser;
       return { user: userWithoutPassword };
     }
@@ -176,8 +203,6 @@ export class PaddleService {
       firstName: input.firstName, lastName: input.lastName || '',
       isRegComplete: false, source: 'paddle', roleSlug: 'client',
     });
-
-    await this.subscriptionsRepository.create({ userId: user.id, customerId: input.customerId || '', subscriptionId: input.subscriptionId || '' });
 
     const roles = user.userRoles?.map((ur: any) => ur.role.slug) ?? [];
     const token = generateTokens({ userId: user.id, email: user.email, roles });
