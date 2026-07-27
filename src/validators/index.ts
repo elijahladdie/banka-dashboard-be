@@ -26,6 +26,11 @@ export {
 } from './subscriptions.validator';
 
 export {
+  createNoteSchema,
+  updateNoteSchema,
+} from './notes.validator';
+
+export {
   createServiceRequestSchema,
   updateServiceRequestSchema,
   respondServiceRequestSchema,

@@ -16,6 +16,8 @@ export class NotesService {
     const { skip, take, orderBy } = getPrismaPagination(pagination);
     const where: QueryParams = { advisorId };
     if (query.clientId) where.clientId = query.clientId;
+    if (query.noteType) where.noteType = query.noteType;
+    console.log(where)
     const [notes, total] = await this.notesRepository.findAll({ skip, take, orderBy, where });
     return paginateResult(notes, total, pagination);
   }
